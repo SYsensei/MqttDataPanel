@@ -1,872 +1,261 @@
 <template>
-  <div class="mqtt-container">
-    <el-card class="mqtt-connection-card">
-      <template #header>
-        <div class="card-header">
-          <h2>MQTT连接配置</h2>
-          <div class="connection-status">
-            <span class="mode-tag">{{ usingMqttLibrary ? '实时模式' : '模拟模式' }}</span>
-            <el-tag :type="connectionStatus.type">{{ connectionStatus.text }}</el-tag>
-          </div>
+  <div class="app-container">
+    <div class="main-container">
+      <!-- 顶部标题和管理员模式开关 -->
+      <div class="app-header">
+        <header-component :logo-src="logoSrc" :battery-level="batteryLevel" />
+        
+        <!-- 管理员模式开关 -->
+        <div v-if="isAdmin" class="admin-mode-switch">
+          <span class="admin-label">管理员模式</span>
+          <el-switch
+            v-model="isAdminMode"
+            active-color="#13ce66"
+            inactive-color="#ff4949"
+            active-text="开启"
+            inactive-text="关闭"
+          />
         </div>
-      </template>
+      </div>
       
-      <el-form :model="connectionForm" :rules="connectionRules" ref="connectionFormRef" label-width="120px">
-        <el-form-item label="服务器预设">
-          <el-select v-model="selectedPreset" @change="applyPreset" style="width: 100%">
-            <el-option
-              v-for="item in serverPresets"
-              :key="item.name"
-              :label="item.name"
-              :value="item.name">
-            </el-option>
-          </el-select>
-        </el-form-item>
+      <el-main>
+        <!-- 电梯门组件 -->
+        <elevator-door-component :door-data="doorData" :is-data-timeout="isDataTimeout" :is-admin-mode="isAdminMode" />
         
-        <el-form-item label="Broker地址" prop="brokerUrl">
-          <el-input v-model="connectionForm.brokerUrl" placeholder="ws://localhost:8083/mqtt">
-            <template #prepend>
-              <el-select v-model="connectionForm.protocol" style="width: 80px">
-                <el-option label="ws://" value="ws://"></el-option>
-                <el-option label="wss://" value="wss://"></el-option>
-              </el-select>
-            </template>
-          </el-input>
-        </el-form-item>
+        <!-- 门机运行状态组件 -->
+        <door-status-component :door-data="doorData" :is-data-timeout="isDataTimeout" />
         
-        <el-form-item label="用户名" prop="username">
-          <el-input v-model="connectionForm.username" placeholder="admin"></el-input>
-        </el-form-item>
-        
-        <el-form-item label="密码" prop="password">
-          <el-input v-model="connectionForm.password" type="password" placeholder="public"></el-input>
-        </el-form-item>
-        
-        <el-form-item label="订阅主题" prop="topic">
-          <el-input v-model="connectionForm.topic" placeholder="sensor/#"></el-input>
-        </el-form-item>
-        
-        <el-form-item>
-          <el-button type="primary" @click="connectMqtt" :disabled="mqttConnected">连接</el-button>
-          <el-button @click="disconnectMqtt" :disabled="!mqttConnected" type="danger">断开</el-button>
-          <el-button @click="testAuth" :disabled="mqttConnected" type="warning">测试认证</el-button>
+        <!-- 十六进制数据显示组件 - 仅管理员可见 -->
+        <hex-display-component v-if="isAdmin" :hex-bytes="lastMessageHex" :last-update-time="lastUpdateTime" />
+      </el-main>
+      
+      <!-- 底部连接状态栏组件 -->
+      <footer-component 
+        :mqtt-connected="mqttConnected"
+        :broker="connectionForm.broker"
+        :topic="connectionForm.topic"
+        :connecting="connecting"
+        :is-admin="isAdmin"
+        @connect="connectMqtt"
+        @disconnect="disconnectMqtt"
+        @showSettings="showAdminLogin = true"
+        @logout="adminLogout"
+      />
+    </div>
+    
+    <!-- 管理员登录对话框 -->
+    <el-dialog
+      title="管理员验证"
+      v-model="showAdminLogin"
+      width="300px"
+      center>
+      <el-form :model="adminLoginForm">
+        <el-form-item label="密码" required>
+          <el-input 
+            type="password" 
+            v-model="adminLoginForm.password"
+            placeholder="请输入管理员密码"
+            show-password
+            @keyup.enter="testAdminLogin"
+          ></el-input>
         </el-form-item>
       </el-form>
-    </el-card>
-    
-    <el-card class="mqtt-data-card">
-      <template #header>
-        <div class="card-header">
-          <h2>实时数据</h2>
-          <div>
-            <el-input
-              v-model="searchQuery"
-              placeholder="按设备ID搜索"
-              style="width: 200px; margin-right: 10px;"
-              clearable
-            ></el-input>
-            <el-select v-model="temperatureFilter" placeholder="温度过滤" clearable style="width: 150px">
-              <el-option label="全部" value=""></el-option>
-              <el-option label="> 30°C" value="high"></el-option>
-              <el-option label="20-30°C" value="medium"></el-option>
-              <el-option label="< 20°C" value="low"></el-option>
-            </el-select>
-          </div>
-        </div>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="showAdminLogin = false">取消</el-button>
+          <el-button type="primary" @click="testAdminLogin">确认</el-button>
+        </span>
       </template>
-      
-      <!-- 原始数据透传区域 -->
-      <div v-if="showRawDataStream" class="raw-data-stream">
-        <div class="stream-header">
-          <h3>原始数据流</h3>
-          <el-switch
-            v-model="showRawDataStream"
-            active-text="显示原始数据"
-            inactive-text="隐藏原始数据"
-          ></el-switch>
-        </div>
-        <div class="stream-content">
-          <pre v-for="item in filteredData.slice(0, 5)" :key="item.id" :class="{ 'new-data': item.isNew }">{{ item.payload }}</pre>
-          <div v-if="filteredData.length > 5" class="more-data">还有 {{ filteredData.length - 5 }} 条数据...</div>
-          <div v-if="filteredData.length === 0" class="no-data">暂无数据</div>
-        </div>
-      </div>
-      
-      <div class="table-header">
-        <h3>数据表格</h3>
-        <el-switch
-          v-model="showRawDataStream"
-          active-text="显示原始数据"
-          inactive-text="隐藏原始数据"
-        ></el-switch>
-      </div>
-      
-      <el-table :data="filteredData" style="width: 100%" height="400px">
-        <el-table-column prop="deviceId" label="设备ID" width="120"></el-table-column>
-        <el-table-column prop="timestamp" label="时间" width="180">
-          <template #default="scope">
-            {{ formatDate(scope.row.timestamp) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="temperature" label="温度(°C)" width="100">
-          <template #default="scope">
-            <span :class="getTemperatureClass(scope.row.temperature)">
-              {{ scope.row.temperature.toFixed(1) }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="humidity" label="湿度(%)" width="100"></el-table-column>
-        <el-table-column prop="topic" label="主题" width="200"></el-table-column>
-        <el-table-column prop="payload" label="原始数据">
-          <template #default="scope">
-            <el-button @click="showRawData(scope.row)" size="small">查看</el-button>
-          </template>
-        </el-table-column>
-        <template #row="{ row }">
-          <tr :class="{ 'new-data-row': row.isNew }">
-          </tr>
-        </template>
-      </el-table>
-    </el-card>
-    
-    <!-- 原始数据对话框 -->
-    <el-dialog v-model="rawDataDialogVisible" title="原始数据" width="50%">
-      <pre>{{ JSON.stringify(currentRawData, null, 2) }}</pre>
     </el-dialog>
-    
-    <!-- 模拟数据发送 -->
-    <el-card class="mqtt-test-card">
-      <template #header>
-        <div class="card-header">
-          <h3>模拟发送数据</h3>
-        </div>
-      </template>
-      
-      <div class="test-actions">
-        <el-button type="success" @click="sendTestData" :disabled="!mqttConnected">
-          发送测试数据
-        </el-button>
-        <el-switch
-          v-model="autoSendEnabled"
-          :disabled="!mqttConnected"
-          active-text="自动发送"
-          inactive-text="手动发送"
-          style="margin-left: 20px;"
-          @change="handleAutoSendChange"
-        ></el-switch>
-        <el-input-number
-          v-if="autoSendEnabled"
-          v-model="autoSendInterval"
-          :min="1"
-          :max="60"
-          :disabled="!mqttConnected"
-          style="width: 120px; margin-left: 10px;"
-        ></el-input-number>
-        <span v-if="autoSendEnabled" style="margin-left: 5px;">秒</span>
-      </div>
-    </el-card>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onBeforeUnmount, watch, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
+import { ElMessage } from 'element-plus'
 
-// MQTT相关
-let mqtt = null
-let client = null
-const mqttConnected = ref(false)
-const usingMqttLibrary = ref(false)
+// 导入组件
+import HeaderComponent from './components/HeaderComponent.vue'
+import ElevatorDoorComponent from './components/ElevatorDoorComponent.vue'
+import DoorStatusComponent from './components/DoorStatusComponent.vue'
+import HexDisplayComponent from './components/HexDisplayComponent.vue'
+import FooterComponent from './components/FooterComponent.vue'
 
-// 连接状态
-const connectionStatus = reactive({
-  text: '未连接',
-  type: 'info'
+// 导入服务
+import { useMqttService } from './components/MqttService'
+import { useDataService } from './components/DataService'
+
+// 使用MQTT服务
+const {
+  mqttConnected,
+  connecting,
+  connectionForm,
+  connectMqtt: connectMqttService,
+  disconnectMqtt: disconnectMqttService
+} = useMqttService()
+
+// 使用数据服务
+const {
+  doorData,
+  lastMessageHex,
+  lastUpdateTime,
+  isDataTimeout,
+  processHexData,
+  doorAnimationUpdate,
+  setDataTimeout
+} = useDataService()
+
+// 管理员相关
+const isAdmin = ref(false)
+const showAdminLogin = ref(false)
+const adminLoginForm = reactive({
+  password: ''
 })
+const ADMIN_PASSWORD = '123456' // 硬编码密码仅用于演示
 
-// 表单引用
-const connectionFormRef = ref(null)
+// Logo路径
+const logoSrc = ref('/logo.png')
 
-// 连接表单
-const connectionForm = reactive({
-  protocol: 'wss://',
-  brokerUrl: 's0f98412.ala.asia-southeast1.emqxsl.com:8084/mqtt',
-  username: 'admin',
-  password: 'public',
-  topic: 'sensor/#'
-})
+// 电池电量
+const batteryLevel = ref(85)
 
-// MQTT服务器预设
-const serverPresets = [
-  {
-    name: '默认服务器',
-    protocol: 'wss://',
-    brokerUrl: 's0f98412.ala.asia-southeast1.emqxsl.com:8084/mqtt',
-    username: 'admin',
-    password: 'public'
-  },
-  {
-    name: 'EMQX官方测试服务器',
-    protocol: 'wss://',
-    brokerUrl: 'broker.emqx.io:8084/mqtt',
-    username: '',
-    password: ''
-  },
-  {
-    name: 'HiveMQ测试服务器',
-    protocol: 'wss://',
-    brokerUrl: 'broker.hivemq.com:8884/mqtt',
-    username: '',
-    password: ''
-  },
-  {
-    name: '自定义服务器',
-    protocol: 'wss://',
-    brokerUrl: '',
-    username: '',
-    password: ''
-  }
-]
+// 管理员模式状态
+const isAdminMode = ref(false)
 
-const selectedPreset = ref('默认服务器')
-
-// 应用预设配置
-const applyPreset = () => {
-  const preset = serverPresets.find(p => p.name === selectedPreset.value)
-  if (preset) {
-    connectionForm.protocol = preset.protocol
-    connectionForm.brokerUrl = preset.brokerUrl
-    connectionForm.username = preset.username
-    connectionForm.password = preset.password
-    
-    ElMessage.info(`已加载服务器预设: ${preset.name}`)
+// 测试管理员登录
+const testAdminLogin = () => {
+  if (adminLoginForm.password === ADMIN_PASSWORD) {
+    isAdmin.value = true
+    showAdminLogin.value = false
+    ElMessage.success('管理员验证成功')
+    adminLoginForm.password = '' // 清空密码
+  } else {
+    ElMessage.error('密码错误')
   }
 }
 
-// 尝试导入MQTT库
-onMounted(async () => {
-  // 延迟检查全局MQTT
-  setTimeout(() => {
-    if (window.mqttLib && typeof window.mqttLib.connect === 'function') {
-      mqtt = window.mqttLib
-      usingMqttLibrary.value = true
-      console.log('使用全局MQTT对象')
-    } else {
-      // 尝试本地导入
-      import('mqtt').then(mqttModule => {
-        console.log('本地导入MQTT:', mqttModule)
-        
-        if (typeof mqttModule.connect === 'function') {
-          mqtt = mqttModule
-        } else if (typeof mqttModule.default?.connect === 'function') {
-          mqtt = mqttModule.default
-        } else {
-          throw new Error('找不到MQTT connect方法')
-        }
-        
-        usingMqttLibrary.value = true
-      }).catch(err => {
-        console.warn('MQTT导入失败:', err)
-        usingMqttLibrary.value = false
-      })
-    }
-  }, 500)
-})
-
-// 表单验证规则
-const connectionRules = {
-  brokerUrl: [
-    { required: true, message: '请输入MQTT Broker地址', trigger: 'blur' }
-  ],
-  topic: [
-    { required: true, message: '请输入订阅主题', trigger: 'blur' }
-  ]
+// 管理员登出方法
+const adminLogout = () => {
+  isAdmin.value = false
+  ElMessage.success('已退出管理员模式')
 }
 
-// 数据相关
-const sensorData = ref([])
-const searchQuery = ref('')
-const temperatureFilter = ref('')
-const rawDataDialogVisible = ref(false)
-const currentRawData = ref(null)
-
-// 模拟数据相关
-const autoSendEnabled = ref(false)
-const autoSendInterval = ref(5)
-let autoSendTimer = null
-
-// 原始数据透传
-const showRawDataStream = ref(true)
-
-// MQTT连接
-const connectMqtt = async () => {
-  try {
-    await connectionFormRef.value.validate()
-    
-    const fullUrl = `${connectionForm.protocol}${connectionForm.brokerUrl}`
-    
-    // 如果MQTT库可用，使用实际连接
-    if (mqtt && usingMqttLibrary.value) {
-      // 连接前先断开已有连接
-      if (client) {
-        await disconnectMqtt()
-      }
-      
-      connectionStatus.text = '连接中...'
-      connectionStatus.type = 'warning'
-      
-      try {
-        const options = {
-          clientId: 'mqttjs_' + Math.random().toString(16).substr(2, 8),
-          clean: true,
-          reconnectPeriod: 5000, // 断线5秒后自动重连
-          connectTimeout: 30 * 1000, // 连接超时时间
-          rejectUnauthorized: false // 忽略未授权的SSL证书
-        }
-        
-        // 认证信息处理
-        if (connectionForm.username) {
-          options.username = connectionForm.username
-          options.password = connectionForm.password
-          console.log('使用认证信息:', connectionForm.username, '密码长度:', connectionForm.password ? connectionForm.password.length : 0)
-        } else {
-          console.warn('未提供认证信息，可能导致连接被拒绝')
-        }
-        
-        console.log('正在连接MQTT:', fullUrl, '认证选项:', {
-          ...options, 
-          password: options.password ? '******' : undefined
-        })
-        
-        // 简化连接逻辑
-        client = mqtt.connect(fullUrl, options)
-        
-        if (!client) {
-          throw new Error('MQTT客户端创建失败')
-        }
-        
-        console.log('MQTT客户端创建成功:', client)
-        
-        // 确保注册了所有事件处理器
-        client.on('connect', () => {
-          console.log('MQTT连接成功')
-          mqttConnected.value = true
-          connectionStatus.text = '已连接'
-          connectionStatus.type = 'success'
-          ElMessage.success('MQTT连接成功')
-          
-          // 订阅主题
-          client.subscribe(connectionForm.topic, (err) => {
-            if (err) {
-              ElMessage.error(`订阅主题失败: ${err.message}`)
-            } else {
-              ElMessage.success(`成功订阅主题: ${connectionForm.topic}`)
-            }
-          })
-        })
-        
-        client.on('message', (topic, message) => {
-          try {
-            const payload = message.toString()
-            console.log('收到MQTT消息:', topic, payload)
-            let jsonData = null
-            
-            try {
-              jsonData = JSON.parse(payload)
-            } catch (e) {
-              jsonData = { value: payload }
-            }
-            
-            // 构建结构化的传感器数据
-            const newData = {
-              id: Date.now().toString(),
-              deviceId: jsonData.deviceId || topic.split('/').pop() || 'unknown',
-              topic: topic,
-              timestamp: jsonData.timestamp || Date.now(),
-              temperature: jsonData.temperature !== undefined ? parseFloat(jsonData.temperature) : 0,
-              humidity: jsonData.humidity !== undefined ? parseFloat(jsonData.humidity) : 0,
-              payload: typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2),
-              isNew: true // 用于新数据高亮
-            }
-            
-            // 添加到数据列表顶部
-            sensorData.value.unshift(newData)
-            
-            // 3秒后移除高亮
-            setTimeout(() => {
-              const index = sensorData.value.findIndex(item => item.id === newData.id)
-              if (index !== -1) {
-                sensorData.value[index].isNew = false
-              }
-            }, 3000)
-            
-            // 限制数据量，避免过多数据导致性能问题
-            if (sensorData.value.length > 1000) {
-              sensorData.value = sensorData.value.slice(0, 1000)
-            }
-          } catch (error) {
-            console.error('处理MQTT消息错误:', error)
-          }
-        })
-        
-        client.on('error', (err) => {
-          console.error('MQTT错误:', err)
-          connectionStatus.text = '连接错误'
-          connectionStatus.type = 'danger'
-          
-          // 处理特定的错误
-          if (err.message.includes('Not authorized')) {
-            ElMessage.error('MQTT错误: 认证失败，请检查用户名和密码是否正确')
-            console.error('认证失败详情:', {
-              broker: connectionForm.brokerUrl,
-              username: connectionForm.username,
-              usingPassword: !!connectionForm.password,
-              clientId: options.clientId
-            })
-          } else {
-            ElMessage.error(`MQTT错误: ${err.message}`)
-          }
-        })
-        
-        client.on('offline', () => {
-          console.log('MQTT离线')
-          mqttConnected.value = false
-          connectionStatus.text = '已断开'
-          connectionStatus.type = 'info'
-        })
-        
-        client.on('reconnect', () => {
-          console.log('MQTT重连中')
-          connectionStatus.text = '重新连接中...'
-          connectionStatus.type = 'warning'
-        })
-      } catch (error) {
-        console.error('MQTT连接失败:', error)
-        connectionStatus.text = '连接失败'
-        connectionStatus.type = 'danger'
-        ElMessage.error(`MQTT连接失败: ${error.message}`)
-      }
-    } else {
-      // 使用模拟模式
-      console.log('使用模拟模式')
-      connectionStatus.text = '连接中...'
-      connectionStatus.type = 'warning'
-      
-      // 模拟连接延迟
-      setTimeout(() => {
-        mqttConnected.value = true
-        connectionStatus.text = '已连接 (模拟模式)'
-        connectionStatus.type = 'success'
-        ElMessage.success('MQTT连接成功 (模拟模式)')
-        
-        // 显示模拟提示
-        ElMessage.info('当前处于模拟模式，未实际连接MQTT服务器，请安装MQTT.js库: npm install mqtt --save')
-      }, 1000)
-    }
-  } catch (error) {
-    console.error('表单验证失败:', error)
-    ElMessage.error('表单验证失败，请检查输入')
-  }
+// 自定义MQTT连接方法
+const connectMqtt = () => {
+  connectMqttService(processHexData)
 }
 
-// 断开MQTT连接
+// 自定义MQTT断开方法
 const disconnectMqtt = () => {
-  return new Promise((resolve) => {
-    stopAutoSend()
-    
-    if (mqtt && usingMqttLibrary.value && client && client.connected) {
-      client.end(true, {}, () => {
-        mqttConnected.value = false
-        connectionStatus.text = '未连接'
-        connectionStatus.type = 'info'
-        ElMessage.warning('MQTT连接已断开')
-        resolve()
-      })
-    } else {
-      mqttConnected.value = false
-      connectionStatus.text = '未连接'
-      connectionStatus.type = 'info'
-      ElMessage.warning('MQTT连接已断开')
-      resolve()
-    }
+  disconnectMqttService().then(() => {
+    // 设置数据超时状态，使显示停止更新
+    setDataTimeout()
   })
 }
 
-// 格式化日期
-const formatDate = (timestamp) => {
-  const date = new Date(timestamp)
-  return date.toLocaleString()
-}
-
-// 根据温度返回不同的CSS类
-const getTemperatureClass = (temp) => {
-  if (temp > 30) return 'high-temp'
-  if (temp < 20) return 'low-temp'
-  return 'normal-temp'
-}
-
-// 查看原始数据
-const showRawData = (row) => {
-  currentRawData.value = row
-  rawDataDialogVisible.value = true
-}
-
-// 过滤后的数据
-const filteredData = computed(() => {
-  let result = [...sensorData.value]
+onMounted(() => {
+  // 设置Logo图片
+  logoSrc.value = 'data:image/png;base64,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'
   
-  // 搜索过滤
-  if (searchQuery.value) {
-    result = result.filter(item => 
-      item.deviceId.toLowerCase().includes(searchQuery.value.toLowerCase())
-    )
-  }
+  // 每100ms检查一次数据更新和动画
+  const animationInterval = setInterval(() => {
+    doorAnimationUpdate()
+  }, 100)
   
-  // 温度过滤
-  if (temperatureFilter.value) {
-    switch(temperatureFilter.value) {
-      case 'high':
-        result = result.filter(item => item.temperature > 30)
-        break
-      case 'medium':
-        result = result.filter(item => item.temperature >= 20 && item.temperature <= 30)
-        break
-      case 'low':
-        result = result.filter(item => item.temperature < 20)
-        break
-    }
-  }
+  // 组件销毁前清除定时器
+  onBeforeUnmount(() => {
+    clearInterval(animationInterval)
+  })
   
-  return result
-})
-
-// 发送测试数据
-const sendTestData = () => {
-  if (!mqttConnected.value) {
-    ElMessage.warning('请先连接MQTT服务器')
-    return
-  }
-  
-  const deviceId = `sensor${Math.floor(Math.random() * 10)}`
-  const testTopic = connectionForm.topic.replace('#', deviceId)
-  const temperature = parseFloat((Math.random() * 40).toFixed(1))
-  const humidity = parseFloat((Math.random() * 100).toFixed(1))
-  
-  const testData = {
-    deviceId: deviceId,
-    timestamp: Date.now(),
-    temperature: temperature,
-    humidity: humidity
-  }
-  
-  if (mqtt && usingMqttLibrary.value && client && client.connected) {
-    // 实际发送MQTT消息
-    try {
-      console.log('发送MQTT消息:', testTopic, testData)
-      client.publish(testTopic, JSON.stringify(testData))
-      ElMessage.success(`已发送测试数据到主题: ${testTopic}`)
-    } catch (error) {
-      console.error('发送MQTT消息失败:', error)
-      ElMessage.error(`发送测试数据失败: ${error.message}`)
-    }
-  } else {
-    // 模拟模式下，直接添加到数据列表
-    console.log('模拟发送数据:', testTopic, testData)
-    const newData = {
-      id: Date.now().toString(),
-      deviceId: deviceId,
-      topic: testTopic,
-      timestamp: Date.now(),
-      temperature: temperature,
-      humidity: humidity,
-      payload: JSON.stringify(testData, null, 2),
-      isNew: true
-    }
-    
-    // 添加到数据列表顶部
-    sensorData.value.unshift(newData)
-    
-    // 3秒后移除高亮
-    setTimeout(() => {
-      const index = sensorData.value.findIndex(item => item.id === newData.id)
-      if (index !== -1) {
-        sensorData.value[index].isNew = false
-      }
-    }, 3000)
-    
-    // 限制数据量
-    if (sensorData.value.length > 1000) {
-      sensorData.value = sensorData.value.slice(0, 1000)
-    }
-    
-    ElMessage.success(`已生成模拟数据: ${deviceId}, 温度: ${temperature}°C`)
-  }
-}
-
-// 处理自动发送开关变化
-const handleAutoSendChange = (value) => {
-  if (value) {
-    startAutoSend()
-  } else {
-    stopAutoSend()
-  }
-}
-
-// 开始自动发送数据
-const startAutoSend = () => {
-  if (!mqttConnected.value) return
-  
-  stopAutoSend() // 先停止之前的定时器
-  
-  autoSendTimer = setInterval(() => {
-    sendTestData()
-  }, autoSendInterval.value * 1000)
-  
-  ElMessage.info(`已开启自动发送，间隔 ${autoSendInterval.value} 秒`)
-}
-
-// 停止自动发送数据
-const stopAutoSend = () => {
-  if (autoSendTimer) {
-    clearInterval(autoSendTimer)
-    autoSendTimer = null
-  }
-}
-
-// 监视自动发送间隔变化
-watch(autoSendInterval, (newVal) => {
-  if (autoSendEnabled.value) {
-    startAutoSend()
-  }
-})
-
-// 测试认证信息
-const testAuth = async () => {
-  try {
-    await connectionFormRef.value.validate()
-    
-    const fullUrl = `${connectionForm.protocol}${connectionForm.brokerUrl}`
-    
-    // 如果MQTT库可用，使用实际连接
-    if (mqtt && usingMqttLibrary.value) {
-      connectionStatus.text = '测试认证中...'
-      connectionStatus.type = 'warning'
-      
-      try {
-        const options = {
-          clientId: 'mqttjs_test_' + Math.random().toString(16).substr(2, 8),
-          clean: true,
-          connectTimeout: 10 * 1000, // 较短的超时时间
-          rejectUnauthorized: false, // 忽略未授权的SSL证书
-          reconnect: false // 禁止自动重连
-        }
-        
-        if (connectionForm.username) {
-          options.username = connectionForm.username
-          options.password = connectionForm.password
-        }
-        
-        console.log('测试认证信息:', {
-          url: fullUrl,
-          username: options.username,
-          hasPassword: !!options.password
-        })
-        
-        // 创建临时客户端只用于测试认证
-        const testClient = mqtt.connect(fullUrl, options)
-        
-        // 设置超时
-        const timeout = setTimeout(() => {
-          testClient.end(true)
-          connectionStatus.text = '认证超时'
-          connectionStatus.type = 'danger'
-          ElMessage.error('认证测试超时，服务器未响应')
-        }, 10000)
-        
-        testClient.on('connect', () => {
-          clearTimeout(timeout)
-          console.log('认证测试成功')
-          connectionStatus.text = '认证有效'
-          connectionStatus.type = 'success'
-          ElMessage.success('认证信息有效')
-          testClient.end(true)
-        })
-        
-        testClient.on('error', (err) => {
-          clearTimeout(timeout)
-          console.error('认证测试失败:', err)
-          connectionStatus.text = '认证无效'
-          connectionStatus.type = 'danger'
-          
-          if (err.message.includes('Not authorized')) {
-            ElMessage.error('认证失败: 用户名或密码错误')
-          } else {
-            ElMessage.error(`认证测试失败: ${err.message}`)
-          }
-          
-          testClient.end(true)
-        })
-      } catch (error) {
-        console.error('认证测试过程错误:', error)
-        connectionStatus.text = '测试失败'
-        connectionStatus.type = 'danger'
-        ElMessage.error(`认证测试错误: ${error.message}`)
-      }
-    } else {
-      ElMessage.warning('MQTT库未加载，无法测试认证')
-    }
-  } catch (error) {
-    console.error('表单验证失败:', error)
-    ElMessage.error('表单验证失败，请检查输入')
-  }
-}
-
-// 组件销毁前断开连接
-onBeforeUnmount(() => {
-  disconnectMqtt()
+  // 自动连接MQTT
+  connectMqtt()
 })
 </script>
 
-<style scoped>
-.mqtt-container {
-  padding: 20px;
-  max-width: 1200px;
-  margin: 0 auto;
+<style>
+/* 全局样式 */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Microsoft YaHei', Arial, sans-serif;
 }
 
-.mqtt-connection-card {
-  margin-bottom: 20px;
+.app-container {
+  font-family: 'Microsoft YaHei', Arial, sans-serif;
+  height: 100vh;
+  width: 100vw;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  background-color: #0a1a40;
+  color: #eef2ff;
+  display: flex;
+  flex-direction: column;
 }
 
-.mqtt-data-card {
-  margin-bottom: 20px;
+.main-container {
+  padding: 0;
+  background-color: #0a1a40;
+  padding-bottom: 80px; /* 为底部状态栏留出空间 */
+  flex: 1;
 }
 
-.mqtt-test-card {
-  margin-bottom: 20px;
-}
-
-.card-header {
+/* 顶部标题和管理员模式开关布局 */
+.app-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 0 20px;
+  position: relative;
 }
 
-.test-actions {
+.admin-mode-switch {
   display: flex;
   align-items: center;
+  background-color: #132859;
+  padding: 5px 12px;
+  border-radius: 8px;
+  border: 1px solid #1e3a8a;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-.high-temp {
-  color: #F56C6C;
+.admin-label {
+  margin-right: 10px;
+  font-size: 14px;
   font-weight: bold;
+  color: #4d77f9;
 }
 
-.low-temp {
-  color: #409EFF;
+.el-main {
+  padding-top: 10px;
+  padding-bottom: 20px;
 }
 
-.normal-temp {
-  color: #67C23A;
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
-.raw-data-stream {
-  margin-bottom: 20px;
-  border: 1px solid #e4e7ed;
+::-webkit-scrollbar-track {
+  background: #0a1a40;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3a5fc4;
   border-radius: 4px;
 }
 
-.stream-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px;
-  background-color: #f5f7fa;
-  border-bottom: 1px solid #e4e7ed;
+::-webkit-scrollbar-thumb:hover {
+  background: #4d77f9;
 }
 
-.stream-content {
-  padding: 10px;
-  max-height: 300px;
-  overflow-y: auto;
-  background-color: #1e1e1e;
-  color: #d4d4d4;
+/* 元素之间的间距 */
+.el-main > * {
+  margin-bottom: 30px;
 }
 
-.stream-content pre {
-  margin: 5px 0;
-  padding: 8px;
-  border-radius: 4px;
-  white-space: pre-wrap;
-  word-break: break-all;
-  font-family: Consolas, Monaco, 'Andale Mono', monospace;
-  background-color: #2d2d2d;
-}
-
-.stream-content .new-data {
-  background-color: #2c4f2c;
-  animation: highlight-raw 3s ease-out;
-}
-
-.table-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-  padding: 10px;
-}
-
-.no-data {
-  text-align: center;
-  color: #909399;
-  padding: 20px;
-}
-
-.more-data {
-  text-align: center;
-  color: #909399;
-  padding: 10px;
-  font-style: italic;
-}
-
-.el-table .new-data-row {
-  background-color: rgba(103, 194, 58, 0.1);
-  animation: highlight 3s ease-out;
-}
-
-@keyframes highlight {
-  0% {
-    background-color: rgba(103, 194, 58, 0.3);
-  }
-  100% {
-    background-color: transparent;
-  }
-}
-
-@keyframes highlight-raw {
-  0% {
-    background-color: #3a6a3a;
-  }
-  100% {
-    background-color: #2c4f2c;
-  }
-}
-
-.connection-status {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.mode-tag {
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  color: #fff;
-  background-color: #909399;
-}
-
-.mode-tag:empty:before {
-  content: '模拟模式';
+.el-main > *:last-child {
+  margin-bottom: 0;
 }
 </style> 
