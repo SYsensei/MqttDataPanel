@@ -12,6 +12,9 @@ cd dist
 # 如果你要部署到自定义域名
 # echo 'www.example.com' > CNAME
 
+# 确保.nojekyll文件存在以绕过GitHub Pages的Jekyll处理
+touch .nojekyll
+
 # 初始化git并提交
 git init
 git add -A
