@@ -3,7 +3,7 @@
     <div class="main-container">
       <!-- 顶部标题和管理员模式开关 -->
       <div class="app-header">
-        <header-component :logo-src="logoSrc" :battery-level="batteryLevel" />
+        <header-component :logo-src="logoSrc" :battery-level="batteryLevel" @connect="connectMqtt" @disconnect="disconnectMqtt" :is-connected="mqttConnected" :is-admin-mode="isAdminMode" @toggle-admin="toggleAdminMode" />
         
         <!-- 管理员模式开关 -->
         <div v-if="isAdmin" class="admin-mode-switch">
@@ -19,14 +19,41 @@
       </div>
       
       <el-main>
-        <!-- 电梯门组件 -->
-        <elevator-door-component :door-data="doorData" :is-data-timeout="isDataTimeout" :is-admin-mode="isAdminMode" />
+        <!-- 统一的电梯门和门控器状态容器 -->
+        <div class="unified-door-container">
+          <!-- 左侧门控器状态 -->
+          <door-status-component 
+            :door-data="doorData" 
+            :is-data-timeout="isDataTimeout"
+            :valid-topic-received="validTopicReceived"
+            class="status-panel-left"
+            panel-position="left" />
+          
+          <!-- 中间电梯门组件 -->
+          <elevator-door-component 
+            :door-data="doorData" 
+            :is-data-timeout="isDataTimeout" 
+            :is-admin-mode="isAdminMode"
+            class="door-panel-center" />
+          
+          <!-- 右侧门控器状态 -->
+          <door-status-component 
+            :door-data="doorData" 
+            :is-data-timeout="isDataTimeout"
+            :valid-topic-received="validTopicReceived"
+            class="status-panel-right"
+            panel-position="right" />
+        </div>
         
         <!-- 门机运行状态组件 -->
-        <door-status-component :door-data="doorData" :is-data-timeout="isDataTimeout" />
+        <door-status-component 
+          :door-data="doorData" 
+          :is-data-timeout="isDataTimeout"
+          :valid-topic-received="validTopicReceived"
+          class="main-status-panel" />
         
         <!-- 十六进制数据显示组件 - 仅管理员可见 -->
-        <hex-display-component v-if="isAdmin" :hex-bytes="lastMessageHex" :last-update-time="lastUpdateTime" />
+        <hex-display-component v-if="isAdminMode" :hex-bytes="lastMessageHex" :last-update-time="lastUpdateTime" :messages="hexMessageHistory" />
       </el-main>
       
       <!-- 底部连接状态栏组件 -->
@@ -73,6 +100,7 @@
 <script setup>
 import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
 import { ElMessage } from 'element-plus'
+import LogoImage from './assets/images/logo.png'
 
 // 导入组件
 import HeaderComponent from './components/HeaderComponent.vue'
@@ -99,10 +127,14 @@ const {
   doorData,
   lastMessageHex,
   lastUpdateTime,
+  hexMessageHistory,
   isDataTimeout,
+  lastDataReceiveTime,
+  validTopicReceived,
   processHexData,
   doorAnimationUpdate,
-  setDataTimeout
+  setDataTimeout,
+  checkDataTimeout
 } = useDataService()
 
 // 管理员相关
@@ -114,7 +146,7 @@ const adminLoginForm = reactive({
 const ADMIN_PASSWORD = '123456' // 硬编码密码仅用于演示
 
 // Logo路径
-const logoSrc = ref('/logo.png')
+const logoSrc = ref(LogoImage)
 
 // 电池电量
 const batteryLevel = ref(85)
@@ -153,18 +185,40 @@ const disconnectMqtt = () => {
   })
 }
 
+// 切换管理员模式
+const toggleAdminMode = () => {
+  isAdminMode.value = !isAdminMode.value
+  if (isAdminMode.value) {
+    connectMqtt()
+  } else {
+    disconnectMqtt()
+  }
+}
+
 onMounted(() => {
-  // 设置Logo图片
-  logoSrc.value = 'data:image/png;base64,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'
-  
   // 每100ms检查一次数据更新和动画
   const animationInterval = setInterval(() => {
     doorAnimationUpdate()
   }, 100)
   
+  // 500ms检查一次数据超时状态
+  const timeoutCheckInterval = setInterval(() => {
+    checkDataTimeout()
+  }, 500)
+  
+  // 定期检查MQTT连接状态，如果未连接则尝试重连
+  const connectionCheckInterval = setInterval(() => {
+    if (!mqttConnected.value && !connecting.value) {
+      console.log('检测到MQTT未连接，尝试重连...')
+      connectMqtt()
+    }
+  }, 5000)
+  
   // 组件销毁前清除定时器
   onBeforeUnmount(() => {
     clearInterval(animationInterval)
+    clearInterval(timeoutCheckInterval)
+    clearInterval(connectionCheckInterval)
   })
   
   // 自动连接MQTT
@@ -198,6 +252,7 @@ body {
   background-color: #0a1a40;
   padding-bottom: 80px; /* 为底部状态栏留出空间 */
   flex: 1;
+  width: 100%;
 }
 
 /* 顶部标题和管理员模式开关布局 */
@@ -207,6 +262,7 @@ body {
   align-items: center;
   padding: 0 20px;
   position: relative;
+  margin-bottom: 20px;
 }
 
 .admin-mode-switch {
@@ -229,6 +285,12 @@ body {
 .el-main {
   padding-top: 10px;
   padding-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 /* 滚动条样式 */
@@ -252,10 +314,64 @@ body {
 
 /* 元素之间的间距 */
 .el-main > * {
-  margin-bottom: 30px;
+  margin-bottom: 10px;
 }
 
 .el-main > *:last-child {
   margin-bottom: 0;
+}
+
+/* 统一的电梯门和门控器状态容器样式 */
+.unified-door-container {
+  display: flex;
+  width: 100%;
+  max-width: 900px;
+  justify-content: space-between;
+  margin: 10px 0;
+  background-color: #132859;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  border: 1px solid #1e3a8a;
+  padding: 15px;
+  box-sizing: border-box;
+  min-height: 370px;
+}
+
+.status-panel-left {
+  width: 18%;
+  padding: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 340px;
+}
+
+.door-panel-center {
+  width: 62%;
+  padding: 0 15px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 340px;
+}
+
+.status-panel-right {
+  width: 18%;
+  padding: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 340px;
+}
+
+/* 门机运行状态组件样式 */
+.main-status-panel {
+  width: 100%;
+  max-width: 900px;
+  margin: 5px 0;
 }
 </style> 

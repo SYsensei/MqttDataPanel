@@ -3,7 +3,7 @@
     <!-- 楼层显示 -->
     <div class="floor-display-area">
       <div class="floor-direction left">
-        <i class="el-icon-top"></i>
+        <div class="arrow-up"></div>
       </div>
       <div class="floor-display-panel">
         <div class="floor-number-box">
@@ -11,7 +11,7 @@
         </div>
       </div>
       <div class="floor-direction right">
-        <i class="el-icon-bottom"></i>
+        <div class="arrow-down"></div>
       </div>
     </div>
     
@@ -104,7 +104,7 @@ const chartScrollContainer = ref(null)
 // 插值动画相关变量
 const currentDoorPosition = ref(0) // 当前显示的门位置插值
 const targetDoorPosition = ref(0)  // 目标门位置
-const interpolationSpeed = 0.08    // 插值速度系数
+const interpolationSpeed = 0.5     // 增大插值速度系数以更快响应
 
 // 声明动画和记录器变量
 let animationFrame = null
@@ -114,6 +114,12 @@ let positionRecorder = null
 watch(() => props.doorData.doorPosition, (newValue) => {
   if (!props.isDataTimeout && newValue !== undefined) {
     targetDoorPosition.value = newValue
+    
+    // 如果变化很大，直接设置当前位置接近目标值，减少追赶时间
+    const diff = Math.abs(targetDoorPosition.value - currentDoorPosition.value)
+    if (diff > 20) { // 降低大幅变化判断阈值，使更多变化能快速响应
+      currentDoorPosition.value = targetDoorPosition.value - (targetDoorPosition.value > currentDoorPosition.value ? 10 : -10)
+    }
   }
 })
 
@@ -124,7 +130,9 @@ function animatePosition() {
   
   // 应用插值，创建平滑过渡
   if (Math.abs(diff) > 0.1) {
-    currentDoorPosition.value += diff * interpolationSpeed
+    // 使用非线性插值，差距越大移动越快
+    const speed = Math.min(Math.abs(diff) * 0.05 + interpolationSpeed, 0.9) // 增大速度变化参数和最大速度
+    currentDoorPosition.value += diff * speed
   } else {
     currentDoorPosition.value = targetDoorPosition.value
   }
@@ -174,12 +182,14 @@ onUnmounted(() => {
 
 // 计算当前楼层
 const floorNumber = computed(() => {
-  return props.doorData.floor || '12'
+  if (props.isDataTimeout) return '0'
+  // 使用门数据中的楼层信息
+  return props.doorData.floor ? props.doorData.floor.toString() : '0'
 })
 
 // 门位置文本
 const doorPositionText = computed(() => {
-  return `${currentDoorPosition.value.toFixed(1)} / ${maxDoorPosition.value}`
+  return `${currentDoorPosition.value.toFixed(1)}mm / ${maxDoorPosition.value}mm`
 })
 
 // 门开启百分比，用于进度条显示
@@ -228,20 +238,12 @@ const chartPoints = computed(() => {
 <style scoped>
 /* 电梯门样式 */
 .elevator-door-container {
-  position: relative;
   width: 100%;
-  max-width: 400px;
-  margin: 0 auto;
-  background-color: #132859;
-  border-radius: 8px;
-  padding: 20px 0;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-  border: 1px solid #1e3a8a;
+  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin: 20px auto 30px auto;
-  height: auto;
+  justify-content: center;
 }
 
 /* 楼层显示区域 */
@@ -309,11 +311,39 @@ const chartPoints = computed(() => {
   margin-left: 10px;
 }
 
+.floor-direction i {
+  font-size: 20px;
+}
+
+.arrow-up {
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 16px solid #4d77f9;
+}
+
+.arrow-down {
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 16px solid #4d77f9;
+}
+
 /* 电梯门区域 */
 .elevator-door-area {
   width: 100%;
-  height: 240px;
+  max-width: 320px;
+  margin: 0 auto;
   position: relative;
+  height: 300px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .elevator-door {
@@ -322,7 +352,7 @@ const chartPoints = computed(() => {
   left: 50%;
   transform: translateX(-50%);
   width: 60%;
-  height: 170px;
+  height: 200px;
   display: flex;
 }
 

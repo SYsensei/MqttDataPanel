@@ -74,14 +74,20 @@ export function useMqttService() {
   
   // 连接到MQTT
   const connectMqtt = async (dataCallback) => {
-    if (mqttConnected.value) {
-      await disconnectMqtt()
+    if (connecting.value) {
+      console.log('MQTT连接正在进行中，忽略重复请求')
       return
+    }
+    
+    if (mqttConnected.value) {
+      console.log('MQTT已连接，先断开连接')
+      await disconnectMqtt()
     }
     
     if (!mqtt) {
       mqtt = await initMqtt()
       if (!mqtt) {
+        console.error('MQTT初始化失败')
         return
       }
     }
@@ -118,6 +124,7 @@ export function useMqttService() {
         // 订阅主题
         client.subscribe(connectionForm.topic, (err) => {
           if (err) {
+            console.error(`订阅主题失败: ${err.message}`)
             ElMessage.error(`订阅主题失败: ${err.message}`)
           } else {
             console.log(`成功订阅主题: ${connectionForm.topic}`)

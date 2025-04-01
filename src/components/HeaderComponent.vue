@@ -4,6 +4,7 @@
       <div class="time">{{ currentTime }}</div>
     </div>
     <div class="center-section">
+      <img v-if="logoSrc" :src="logoSrc" alt="Logo" class="header-logo" />
       <div class="title-container">
         <div class="title">天狼星AI门机</div>
         <div class="subtitle">美的先行研究中心</div>
@@ -88,15 +89,27 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
   flex-grow: 1;
   padding: 0 15px;
+  position: relative;
+}
+
+.header-logo {
+  height: 28px;
+  width: auto;
+  position: absolute;
+  left: calc(50% - 110px);
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .title-container {
   display: flex;
   flex-direction: column;
   align-items: center;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .title {
@@ -118,7 +131,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
-  max-width: 150px;
+  min-width: 80px;
 }
 
 .weather {

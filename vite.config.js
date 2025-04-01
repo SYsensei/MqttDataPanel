@@ -15,5 +15,11 @@ export default defineConfig({
     alias: {
       '@': resolve(__dirname, './src')
     }
+  },
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    // 确保图片资源被正确复制
+    assetsInlineLimit: 0
   }
 }) 

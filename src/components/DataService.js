@@ -46,7 +46,13 @@ export function useDataService() {
     doorCloseProgress: 0,   // 关门进度(0-1)
     
     // 累计运行次数
-    totalOperations: 88500
+    totalOperations: 88500,
+    
+    // 新增 currentSpeed 属性
+    currentSpeed: 0,
+    
+    // 新增判断阻门标志
+    stallByObstacle: 0
   })
   
   // 原始十六进制数据
@@ -59,32 +65,53 @@ export function useDataService() {
   
   // 最后数据接收时间
   const lastDataReceiveTime = ref(Date.now())
+  const validTopicReceived = ref(false)  // 是否接收到有效的jmjdoor topic数据
   
-  // 检测数据是否超时（1秒无数据）
-  const isDataTimeout = computed(() => {
-    return Date.now() - lastDataReceiveTime.value > 1000
-  })
+  // 设置用于判断数据超时的标志
+  let isDataReceivedRecently = false
+  
+  // 计算数据是否超时
+  const isDataTimeout = ref(false) // 改为普通ref变量而不是计算属性
+  
+  // 定期检查数据是否超时的函数
+  const checkDataTimeout = () => {
+    const currentTime = Date.now()
+    // 如果超过3秒没有收到数据，则设置超时标志
+    const shouldTimeout = (currentTime - lastDataReceiveTime.value > 3000)
+    if (shouldTimeout !== isDataTimeout.value) {
+      isDataTimeout.value = shouldTimeout
+      console.log('数据超时状态更新:', isDataTimeout.value)
+    }
+  }
   
   // 处理十六进制数据
   const processHexData = (message) => {
     try {
-      // 更新最后数据接收时间
+      // 更新最后接收数据的时间戳
       lastDataReceiveTime.value = Date.now()
       
-      // 转换为Uint8Array
-      const uint8Array = new Uint8Array(message)
+      // 设置最近收到数据标志
+      isDataReceivedRecently = true
       
-      // 保存原始十六进制数据用于显示
-      lastMessageHex.value = Array.from(uint8Array).map(b => b.toString(16).padStart(2, '0').toUpperCase())
+      // 将消息转换为Uint8Array
+      let uint8Array = new Uint8Array(message)
       
-      // 更新最后接收时间，使用更精确的时间戳
-      const now = new Date()
-      lastUpdateTime.value = now.toLocaleTimeString('zh-CN', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-      }) + '.' + now.getMilliseconds().toString().padStart(3, '0')
+      // 确保消息长度足够
+      if (uint8Array.length < 26) {
+        console.warn('消息长度不足')
+        return
+      }
+      
+      // 标记已接收到有效主题数据 - 只要收到消息就设置为true
+      validTopicReceived.value = true
+      
+      // 更新十六进制显示
+      let hexString = ''
+      for (let i = 0; i < uint8Array.length; i++) {
+        hexString += uint8Array[i].toString(16).padStart(2, '0').toUpperCase() + ' '
+      }
+      lastMessageHex.value = hexString.trim()
+      lastUpdateTime.value = new Date().toLocaleTimeString()
       
       // 添加消息到历史记录
       addMessageToHistory(lastMessageHex.value)
@@ -109,6 +136,7 @@ export function useDataService() {
       doorData.forceClose = ((uint8Array[5] & 0x01) === 0x01) ? 1 : 0
       doorData.closing = ((uint8Array[5] & 0x02) === 0x02) ? 1 : 0
       doorData.opening = ((uint8Array[5] & 0x04) === 0x04) ? 1 : 0
+      doorData.stallByObstacle = ((uint8Array[5] & 0x08) === 0x08) ? 1 : 0  // 假设在byte5的bit3位
       // 解析 BYTE6 输入端子状态
       doorData.DI0 = ((uint8Array[6] & 0x01) === 0x01) ? 1 : 0
       doorData.DI1 = ((uint8Array[6] & 0x02) === 0x02) ? 1 : 0
@@ -137,8 +165,13 @@ export function useDataService() {
       doorData.doorPosition = ((uint8Array[16] << 8) | uint8Array[17]) / 10
       // 解析反馈速度
       doorData.feedbackSpeed = ((uint8Array[18] << 8) | uint8Array[19]) / 1000
-      // 解析电阻
+      
+      // 设置当前速度为反馈速度
+      doorData.currentSpeed = doorData.feedbackSpeed
+      
+      // 阻力值
       doorData.resist = (uint8Array[20] << 8) | uint8Array[21]
+      
       // 解析圈数和楼层
       doorData.turns = uint8Array[22] / 10
       doorData.floor = uint8Array[23]
@@ -208,12 +241,11 @@ export function useDataService() {
   
   // 门动画更新函数
   const doorAnimationUpdate = () => {
-    // 检查数据超时
-    const currentTime = Date.now()
-    const isTimeout = currentTime - lastDataReceiveTime.value > 1000
+    // 检查数据是否超时
+    checkDataTimeout()
     
     // 如果数据超时，不进行动画更新
-    if (isTimeout) {
+    if (isDataTimeout.value) {
       return
     }
     
@@ -229,7 +261,9 @@ export function useDataService() {
   
   // 设置数据超时，用于断开连接时
   const setDataTimeout = () => {
-    lastDataReceiveTime.value = Date.now() - 2000
+    lastDataReceiveTime.value = Date.now() - 4000
+    // 立即检查并更新超时状态
+    checkDataTimeout()
   }
   
   return {
@@ -239,9 +273,11 @@ export function useDataService() {
     hexMessageHistory,
     isDataTimeout,
     lastDataReceiveTime,
+    validTopicReceived,
     processHexData,
     addMessageToHistory,
     doorAnimationUpdate,
-    setDataTimeout
+    setDataTimeout,
+    checkDataTimeout
   }
 } 
