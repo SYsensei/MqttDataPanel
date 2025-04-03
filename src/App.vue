@@ -3,7 +3,14 @@
     <div class="main-container">
       <!-- 顶部标题和管理员模式开关 -->
       <div class="app-header">
-        <header-component :logo-src="logoSrc" :battery-level="batteryLevel" @connect="connectMqtt" @disconnect="disconnectMqtt" :is-connected="mqttConnected" :is-admin-mode="isAdminMode" @toggle-admin="toggleAdminMode" />
+        <header-component 
+          :logo-src="logoSrc" 
+          :battery-level="batteryLevel" 
+          @connect="connectMqtt" 
+          @disconnect="disconnectMqtt" 
+          :is-connected="mqttConnected" 
+          :is-admin-mode="isAdminMode" 
+          @toggle-admin="toggleAdminMode" />
         
         <!-- 管理员模式开关 -->
         <div v-if="isAdmin" class="admin-mode-switch">
@@ -19,41 +26,75 @@
       </div>
       
       <el-main>
-        <!-- 统一的电梯门和门控器状态容器 -->
-        <div class="unified-door-container">
-          <!-- 左侧门控器状态 -->
+        <!-- 内容容器 - 用于统一宽度 -->
+        <div class="content-container">
+          <!-- 统一的电梯门和门控器状态容器 -->
+          <div class="unified-door-container">
+            <!-- 左侧门控器状态 -->
+            <door-status-component 
+              :key="'left-panel'"
+              :door-data="doorData" 
+              :is-data-timeout="isDataTimeout"
+              :valid-topic-received="validTopicReceived"
+              class="status-panel-left"
+              panel-position="left" />
+            
+            <!-- 中间电梯门组件 -->
+            <elevator-door-component 
+              :key="'door-panel'"
+              :door-data="doorData" 
+              :is-data-timeout="isDataTimeout" 
+              :is-admin-mode="isAdminMode"
+              class="door-panel-center" />
+            
+            <!-- 右侧门控器状态 -->
+            <door-status-component 
+              :key="'right-panel'"
+              :door-data="doorData" 
+              :is-data-timeout="isDataTimeout"
+              :valid-topic-received="validTopicReceived"
+              class="status-panel-right"
+              panel-position="right" />
+            
+            <!-- 包装左右面板的容器 - 仅小屏幕显示 -->
+            <div class="status-panels-wrapper">
+              <!-- 左侧门控器状态（小屏幕复制） -->
+              <door-status-component 
+                :key="'left-panel-small'"
+                :door-data="doorData" 
+                :is-data-timeout="isDataTimeout"
+                :valid-topic-received="validTopicReceived"
+                class="status-panel-left-small"
+                panel-position="left" />
+              
+              <!-- 右侧门控器状态（小屏幕复制） -->
+              <door-status-component 
+                :key="'right-panel-small'"
+                :door-data="doorData" 
+                :is-data-timeout="isDataTimeout"
+                :valid-topic-received="validTopicReceived"
+                class="status-panel-right-small"
+                panel-position="right" />
+            </div>
+          </div>
+          
+          <!-- 门机运行状态组件 -->
           <door-status-component 
+            :key="'main-panel'"
             :door-data="doorData" 
             :is-data-timeout="isDataTimeout"
             :valid-topic-received="validTopicReceived"
-            class="status-panel-left"
-            panel-position="left" />
+            class="main-status-panel"
+            panel-position="main" />
           
-          <!-- 中间电梯门组件 -->
-          <elevator-door-component 
-            :door-data="doorData" 
-            :is-data-timeout="isDataTimeout" 
-            :is-admin-mode="isAdminMode"
-            class="door-panel-center" />
-          
-          <!-- 右侧门控器状态 -->
-          <door-status-component 
-            :door-data="doorData" 
-            :is-data-timeout="isDataTimeout"
-            :valid-topic-received="validTopicReceived"
-            class="status-panel-right"
-            panel-position="right" />
+          <!-- 十六进制数据显示组件 - 仅管理员可见 -->
+          <hex-display-component 
+            v-if="isAdminMode" 
+            :key="'hex-display'"
+            :hex-bytes="lastMessageHex" 
+            :last-update-time="lastUpdateTime" 
+            :messages="hexMessageHistory" />
         </div>
-        
-        <!-- 门机运行状态组件 -->
-        <door-status-component 
-          :door-data="doorData" 
-          :is-data-timeout="isDataTimeout"
-          :valid-topic-received="validTopicReceived"
-          class="main-status-panel" />
-        
-        <!-- 十六进制数据显示组件 - 仅管理员可见 -->
-        <hex-display-component v-if="isAdminMode" :hex-bytes="lastMessageHex" :last-update-time="lastUpdateTime" :messages="hexMessageHistory" />
       </el-main>
       
       <!-- 底部连接状态栏组件 -->
@@ -289,7 +330,7 @@ body {
   flex-direction: column;
   align-items: center;
   width: 100%;
-  max-width: 1200px;
+  max-width: 100%;
   margin: 0 auto;
 }
 
@@ -325,53 +366,247 @@ body {
 .unified-door-container {
   display: flex;
   width: 100%;
-  max-width: 900px;
+  max-width: 100%;
   justify-content: space-between;
+  gap: 0;
   margin: 10px 0;
   background-color: #132859;
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
   border: 1px solid #1e3a8a;
-  padding: 15px;
+  padding: 6px;
   box-sizing: border-box;
-  min-height: 370px;
+  min-height: 350px;
+  flex-direction: row;
+  flex-wrap: nowrap;
 }
 
-.status-panel-left {
-  width: 18%;
+.status-panel-left, .status-panel-right {
+  width: 32%;
   padding: 0;
+  margin: 0;
   box-sizing: border-box;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  height: 340px;
+  height: 330px;
+  flex-grow: 1;
 }
 
 .door-panel-center {
-  width: 62%;
-  padding: 0 15px;
+  width: 36%;
+  padding: 0;
+  margin: 0;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 340px;
+  height: 330px;
+  flex-grow: 1;
 }
 
-.status-panel-right {
-  width: 18%;
-  padding: 0;
+/* 小屏幕面板样式 */
+.status-panel-left-small, .status-panel-right-small {
+  height: auto;
+  min-height: 250px;
   box-sizing: border-box;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  height: 340px;
+}
+
+.status-panel-left-small {
+  width: 48%;
+  padding-right: 1px;
+}
+
+.status-panel-right-small {
+  width: 52%;
+  padding-left: 1px;
+  flex-grow: 1;
+}
+
+/* 包装左右面板的容器 - 默认隐藏 */
+.status-panels-wrapper {
+  display: none;
+  width: 100%;
+  justify-content: space-between;
+}
+
+/* 所有媒体查询的处理 */
+@media (min-width: 769px) {
+  /* 大屏幕下的布局 */
+  .unified-door-container {
+    flex-direction: row;
+    gap: 0;
+  }
+  
+  .status-panel-left, .status-panel-right {
+    display: flex;
+    width: 32%;
+  }
+  
+  .door-panel-center {
+    width: 36%;
+  }
+  
+  .status-panels-wrapper {
+    display: none;
+  }
+}
+
+/* 媒体查询 - 中等屏幕设备 */
+@media (max-width: 768px) and (min-width: 577px) {
+  /* 中屏幕下的布局 */
+  .unified-door-container {
+    flex-direction: column;
+    padding: 6px;
+    min-height: auto;
+    gap: 4px;
+  }
+  
+  .door-panel-center {
+    width: 100%;
+    order: 1;
+    margin-bottom: 4px;
+    display: flex;
+  }
+  
+  .status-panel-left, .status-panel-right {
+    display: none;
+  }
+  
+  .status-panels-wrapper {
+    display: flex;
+    flex-direction: row;
+    order: 2;
+    width: 100%;
+  }
+  
+  .status-panel-left-small {
+    width: 48%;
+    padding-right: 1px;
+  }
+  
+  .status-panel-right-small {
+    width: 52%;
+    padding-left: 1px;
+  }
+}
+
+/* 媒体查询 - 小屏幕设备 */
+@media (max-width: 576px) {
+  /* 小屏幕下的布局 */
+  .unified-door-container {
+    flex-direction: column;
+    padding: 6px;
+    min-height: auto;
+    gap: 4px;
+  }
+  
+  .door-panel-center {
+    width: 100%;
+    order: 1;
+    margin-bottom: 4px;
+    display: flex;
+  }
+  
+  .status-panel-left, .status-panel-right {
+    display: none;
+  }
+  
+  .status-panels-wrapper {
+    display: flex;
+    flex-direction: row;
+    order: 2;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+  }
+  
+  /* 确保right面板完全填充可用空间 */
+  .status-panel-left-small {
+    width: 46%;
+    padding-right: 0;
+    margin-right: 1px;
+  }
+  
+  .status-panel-right-small {
+    width: 54%;
+    padding-left: 0;
+    margin-left: 1px;
+    flex-grow: 1;
+  }
+  
+  /* 调整天气和时间显示，避免与Logo重叠 */
+  .app-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .app-header header-component {
+    margin-bottom: 10px;
+    width: 100%;
+  }
+  
+  .app-header .admin-mode-switch {
+    align-self: flex-end;
+  }
+  
+  /* 让天气和时间显示在Logo下方 */
+  .header-weather-time {
+    position: relative !important;
+    right: auto !important;
+    top: auto !important;
+    margin-top: 5px;
+    align-self: flex-end;
+  }
+  
+  .section-title {
+    font-size: 12px;
+  }
+  
+  .status-name {
+    font-size: 12px;
+  }
+  
+  .status-detail {
+    font-size: 10px;
+  }
+  
+  .main-status-panel {
+    padding: 5px;
+  }
 }
 
 /* 门机运行状态组件样式 */
 .main-status-panel {
   width: 100%;
-  max-width: 900px;
+  max-width: 100%;
   margin: 5px 0;
+}
+
+@media (min-width: 1200px) {
+  .el-main {
+    max-width: 1200px;
+  }
+  
+  .unified-door-container, .main-status-panel {
+    max-width: 900px;
+  }
+}
+
+/* 确保各区域宽度一致的样式 */
+.unified-door-container, .main-status-panel {
+  max-width: 100%;
+  width: 100%;
+}
+
+/* 内容容器样式 */
+.content-container {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 </style> 

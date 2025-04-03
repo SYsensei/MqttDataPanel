@@ -18,8 +18,8 @@
     <!-- 电梯门 -->
     <div class="elevator-door-area">
       <div class="elevator-door">
-        <div class="door-left" :style="{ transform: `scaleX(${1 - doorOpenPosition/100})` }"></div>
-        <div class="door-right" :style="{ transform: `scaleX(${1 - doorOpenPosition/100})` }"></div>
+        <div class="door-left" :style="doorLeftStyle"></div>
+        <div class="door-right" :style="doorRightStyle"></div>
       </div>
     </div>
     
@@ -89,7 +89,7 @@ const props = defineProps({
 })
 
 // 记录最大门位置
-const maxDoorPosition = ref(490)
+const maxDoorPosition = ref(500)
 
 // 用于存储门位置历史数据的数组
 const positionHistory = ref([])
@@ -233,6 +233,49 @@ const chartPoints = computed(() => {
     return `${x},${y}`
   }).join(' ')
 })
+
+// 计算门的动画样式
+const doorLeftStyle = computed(() => {
+  // 使用平滑动画位置
+  const animationPosition = props.doorData.animationDoorPosition || props.doorData.doorPosition;
+  
+  // 开门：0-500mm，0表示关闭，500表示完全打开
+  // 转换为CSS中的百分比位置，关闭时为0%，完全打开时为50%（左门）
+  const openPercentage = (animationPosition / 500) * 100; // 0-50%
+  
+  if (props.isDataTimeout) {
+    return {
+      transform: `translateX(-5%)`,
+      transition: 'transform 0.5s ease-out'
+    }
+  }
+  
+  return {
+    transform: `translateX(-${openPercentage}%)`,
+    transition: 'transform 0.5s ease-out'
+  }
+})
+
+const doorRightStyle = computed(() => {
+  // 使用平滑动画位置
+  const animationPosition = props.doorData.animationDoorPosition || props.doorData.doorPosition;
+  
+  // 开门：0-500mm，0表示关闭，500表示完全打开
+  // 转换为CSS中的百分比位置，关闭时为0%，完全打开时为50%（右门）
+  const openPercentage = (animationPosition / 500) * 100; // 0-50%
+  
+  if (props.isDataTimeout) {
+    return {
+      transform: `translateX(5%)`,
+      transition: 'transform 0.5s ease-out'
+    }
+  }
+  
+  return {
+    transform: `translateX(${openPercentage}%)`,
+    transition: 'transform 0.5s ease-out'
+  }
+})
 </script>
 
 <style scoped>
@@ -252,9 +295,22 @@ const chartPoints = computed(() => {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding-bottom: 20px;
-  border-bottom: 1px solid #1e3a8a;
-  margin-bottom: 20px;
+  padding-bottom: 6px;
+  margin-bottom: 2px;
+  position: relative;
+  height: 50px;
+}
+
+.floor-display-area::after {
+  content: '';
+  display: block;
+  width: 70%;
+  height: 1px;
+  background-color: #1e3a8a;
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .floor-display-panel {
@@ -337,45 +393,51 @@ const chartPoints = computed(() => {
   max-width: 320px;
   margin: 0 auto;
   position: relative;
-  height: 300px;
+  height: 250px;
   border-radius: 8px;
   overflow: hidden;
   box-sizing: border-box;
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
+  padding-top: 3px;
 }
 
 .elevator-door {
-  position: absolute;
-  top: 15px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 60%;
-  height: 200px;
+  width: 70%;
+  height: 225px;
+  position: relative;
+  background-color: #0a1a40;
+  z-index: 1;
+  overflow: hidden;
   display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 5px;
+  border: 1px solid #1e3a8a;
+  margin-top: 5px;
 }
 
 .door-left, .door-right {
+  position: absolute;
+  top: 0;
   width: 50%;
   height: 100%;
-  background-color: #3a5fc4;
-  position: relative;
-  transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0));
-  box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.5);
+  background-color: #1e3a8a;
+  transition: transform 0.3s ease-out;
+  z-index: 2;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+  transform-origin: left;
 }
 
 .door-left {
-  transform: scaleX(1);
-  border-right: 2px solid #4d77f9;
-  transform-origin: left center;
+  left: 0;
+  border-right: 1px solid #4d77f9;
 }
 
 .door-right {
-  transform: scaleX(1);
-  border-left: 2px solid #4d77f9;
-  transform-origin: right center;
+  right: 0;
+  border-left: 1px solid #4d77f9;
 }
 
 /* 管理员模式部分 */
@@ -499,5 +561,56 @@ const chartPoints = computed(() => {
 
 .position-chart-svg {
   display: block;
+}
+
+/* 媒体查询 - 小屏幕设备 */
+@media (max-width: 576px) {
+  .elevator-door-area {
+    height: 260px;
+    max-width: 100%;
+  }
+  
+  .elevator-door {
+    width: 80%;
+    height: 230px;
+  }
+  
+  .floor-display-area {
+    padding-bottom: 10px;
+    margin-bottom: 5px;
+  }
+  
+  .floor-display-panel {
+    width: 40px;
+    height: 32px;
+    margin: 0 8px;
+  }
+  
+  .floor-number-box {
+    width: 30px;
+    height: 24px;
+  }
+  
+  .floor-number {
+    font-size: 16px;
+  }
+  
+  .floor-direction {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .arrow-up, .arrow-down {
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+  }
+  
+  .arrow-up {
+    border-bottom: 12px solid #4d77f9;
+  }
+  
+  .arrow-down {
+    border-top: 12px solid #4d77f9;
+  }
 }
 </style> 
