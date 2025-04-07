@@ -181,6 +181,9 @@
     <!-- 右侧面板显示门控器数据 -->
     <div v-if="isRightPanel" class="side-panel-section right-panel">
       <div class="status-grid-vertical">
+        <!-- 添加标题 -->
+        <div class="panel-title">门控器运行参数</div>
+        
         <!-- 数据显示区域 -->
         <div class="data-display-section">
           <div class="data-item">
@@ -241,6 +244,39 @@
                 <div class="gauge-fill" :style="{ width: `${parseFloat(doorData.doorPosition) / 900 * 100}%` }"></div>
               </div>
               <div class="gauge-value">{{ parseFloat(doorData.doorPosition).toFixed(1) }}mm</div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 添加运行状态统计部分 -->
+        <div class="operation-stats">
+          <div class="stats-title">运行统计</div>
+          <div class="stats-grid">
+            <div class="stats-item">
+              <div class="stats-label">累计运行次数</div>
+              <div class="stats-value">{{ doorData.totalOperations || 0 }}次</div>
+            </div>
+            <div class="stats-item">
+              <div class="stats-label">平均开门时间</div>
+              <div class="stats-value">{{ (doorData.doorOpenDuration || 0).toFixed(1) }}秒</div>
+            </div>
+            <div class="stats-item">
+              <div class="stats-label">平均关门时间</div>
+              <div class="stats-value">{{ (doorData.doorCloseDuration || 0).toFixed(1) }}秒</div>
+            </div>
+            <div class="stats-item">
+              <div class="stats-label">当前电梯楼层</div>
+              <div class="stats-value">{{ doorData.floor || 1 }}层</div>
+            </div>
+            <div class="stats-item">
+              <div class="stats-label">健康状态</div>
+              <div class="stats-value" :class="{'status-normal': doorData.faultCode === 0, 'status-fault': doorData.faultCode > 0}">
+                {{ doorData.faultCode > 0 ? '故障' : '正常' }}
+              </div>
+            </div>
+            <div class="stats-item">
+              <div class="stats-label">最近维保</div>
+              <div class="stats-value">2025-03-15</div>
             </div>
           </div>
         </div>
@@ -340,6 +376,9 @@ const displayDoorCloseDuration = computed(() => {
 /* 针对右侧面板的特殊样式 */
 .side-panel-section.right-panel {
   padding-right: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 /* 标题样式 */
@@ -799,5 +838,106 @@ const displayDoorCloseDuration = computed(() => {
   0% { opacity: 0.6; }
   50% { opacity: 1; }
   100% { opacity: 0.6; }
+}
+
+/* 运行统计部分 */
+.operation-stats {
+  margin-top: 10px;
+  width: 100%;
+  background-color: #0a1a40;
+  border-radius: 6px;
+  padding: 8px;
+  border: 1px solid #1e3a8a;
+}
+
+.stats-title {
+  font-size: 14px;
+  color: #4d77f9;
+  margin-bottom: 8px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.stats-item {
+  padding: 5px;
+  background-color: #132859;
+  border-radius: 4px;
+  border: 1px solid #1e3a8a;
+}
+
+.stats-label {
+  font-size: 12px;
+  color: #a0aee0;
+  margin-bottom: 2px;
+}
+
+.stats-value {
+  font-size: 14px;
+  color: #eef2ff;
+  font-weight: bold;
+}
+
+.status-normal {
+  color: #22c55e;
+}
+
+.status-fault {
+  color: #e53e3e;
+}
+
+/* 在小屏幕上调整右侧面板布局 */
+@media (max-width: 576px) {
+  .side-panel-section.right-panel,
+  .right-panel {
+    padding: 5px;
+  }
+  
+  .side-panel-section.right-panel .status-grid-vertical,
+  .right-panel .status-grid-vertical {
+    min-height: auto;
+    gap: 8px;
+  }
+  
+  .panel-title {
+    font-size: 14px;
+    margin-bottom: 5px;
+  }
+  
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .stats-label {
+    font-size: 10px;
+  }
+  
+  .stats-value {
+    font-size: 12px;
+  }
+}
+
+/* 小屏幕横屏模式优化 */
+@media (max-width: 576px) and (orientation: landscape) {
+  .side-panel-section.right-panel .data-display-section,
+  .right-panel .data-display-section {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 5px;
+  }
+  
+  .side-panel-section.right-panel .data-item,
+  .right-panel .data-item {
+    width: 100%;
+  }
+  
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 </style> 

@@ -78,7 +78,27 @@ export function useDataService() {
     
     // 到位灯状态记录
     lastOpenInPlaceLightOn: false,
-    lastCloseInPlaceLightOn: false
+    lastCloseInPlaceLightOn: false,
+    doorAngle: 0,  // 门角度
+    errorCode: 0, // 错误代码
+    DO3: false, // DO3 输出
+    DI0: false, // DI0 输入 开门信号
+    DI1: false, // DI1 输入 关门信号
+    DI2: false, // DI2 输入
+    DI3: false, // DI3 输入
+    direction: 0, // 方向：0-停止，1-开门，2-关门
+    openTimerCount: 0, // 开门计时器计数
+    closeTimerCount: 0, // 关门计时器计数
+    hex: "", // 原始数据
+    isOpening: false, // 是否正在开门
+    isClosing: false, // 是否正在关门
+    isOpenAtPlace: false, // 是否开门到位
+    isCloseAtPlace: false, // 是否关门到位
+    signal: {open: 0, close: 0},
+    doorOpenDuration: 0, // 平均开门时间
+    doorCloseDuration: 0, // 平均关门时间
+    faultCode: 0, // 故障代码
+    floor: 1, // 当前楼层
   })
   
   // 原始十六进制数据
@@ -523,5 +543,59 @@ export function useDataService() {
     setDataTimeout,
     checkDataTimeout,
     initDoorStatusMonitor
+  }
+}
+
+// 初始化数据，从本地存储加载总运行次数
+export function initializeData() {
+  const storedTotalOperations = localStorage.getItem('totalOperations');
+  if (storedTotalOperations) {
+    doorData.totalOperations = parseInt(storedTotalOperations);
+  }
+  
+  const storedOpenDuration = localStorage.getItem('doorOpenDuration');
+  if (storedOpenDuration) {
+    doorData.doorOpenDuration = parseFloat(storedOpenDuration);
+  }
+  
+  const storedCloseDuration = localStorage.getItem('doorCloseDuration');
+  if (storedCloseDuration) {
+    doorData.doorCloseDuration = parseFloat(storedCloseDuration);
+  }
+}
+
+// 在组件挂载时调用初始化函数
+initializeData();
+
+// 更新门开关的计时器计数
+export function updateTimerCounts() {
+  if (doorData.isOpening) {
+    doorData.openTimerCount++;
+  }
+  
+  if (doorData.isClosing) {
+    doorData.closeTimerCount++;
+  }
+  
+  // 当开门到位后，如果开门计时器计数大于0，则更新平均开门时间并重置计数器
+  if (doorData.DO0 && doorData.openTimerCount > 0) {
+    // 更新平均开门时间
+    const previousTotal = doorData.doorOpenDuration * (doorData.totalOperations - 1);
+    const newDuration = doorData.openTimerCount / 10; // 转换为秒
+    doorData.doorOpenDuration = (previousTotal + newDuration) / doorData.totalOperations;
+    localStorage.setItem('doorOpenDuration', doorData.doorOpenDuration.toString());
+    
+    doorData.openTimerCount = 0;
+  }
+  
+  // 当关门到位后，如果关门计时器计数大于0，则更新平均关门时间并重置计数器
+  if (doorData.DO1 && doorData.closeTimerCount > 0) {
+    // 更新平均关门时间
+    const previousTotal = doorData.doorCloseDuration * (doorData.totalOperations - 1);
+    const newDuration = doorData.closeTimerCount / 10; // 转换为秒
+    doorData.doorCloseDuration = (previousTotal + newDuration) / doorData.totalOperations;
+    localStorage.setItem('doorCloseDuration', doorData.doorCloseDuration.toString());
+    
+    doorData.closeTimerCount = 0;
   }
 } 

@@ -41,36 +41,36 @@ export function useMqttService() {
   
   // MQTT连接表单
   const connectionForm = reactive({
-    broker: 'ws://broker.emqx.io:8083/mqtt',
-    port: 8083,
+    broker: 'wss://broker.emqx.io:8084/mqtt',
+    port: 8084,
     username: '',
     password: '',
-    ssl: false,
+    ssl: true,
     topic: 'jmjdoor'
   })
   
   // 服务器预设
   const serverPresets = [
     {
-      name: '默认服务器',
-      broker: 'ws://broker.emqx.io:8083/mqtt',
-      username: '',
-      password: '',
-      topic: 'jmjdoor'
-    },
-    {
-      name: 'SSL安全连接',
+      name: '默认服务器(安全连接)',
       broker: 'wss://broker.emqx.io:8084/mqtt',
       username: '',
       password: '',
       topic: 'jmjdoor'
     },
     {
-      name: '自定义服务器',
-      broker: '',
+      name: '备用服务器',
+      broker: 'wss://broker.hivemq.com:8884',
       username: '',
       password: '',
-      topic: ''
+      topic: 'jmjdoor'
+    },
+    {
+      name: '仅本地开发(非安全)',
+      broker: 'ws://broker.emqx.io:8083/mqtt',
+      username: '',
+      password: '',
+      topic: 'jmjdoor'
     }
   ]
   

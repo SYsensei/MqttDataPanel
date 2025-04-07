@@ -140,14 +140,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
+import { ref, reactive, onMounted, onBeforeUnmount, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import LogoImage from './assets/images/logo.png'
+import DoorStatusComponent from './components/DoorStatusComponent.vue'
+import ElevatorDoorComponent from './components/ElevatorDoorComponent.vue'
 
 // 导入组件
 import HeaderComponent from './components/HeaderComponent.vue'
-import ElevatorDoorComponent from './components/ElevatorDoorComponent.vue'
-import DoorStatusComponent from './components/DoorStatusComponent.vue'
 import HexDisplayComponent from './components/HexDisplayComponent.vue'
 import FooterComponent from './components/FooterComponent.vue'
 import HistogramComponent from './components/HistogramComponent.vue'
@@ -155,13 +155,16 @@ import AdminLoginComponent from './components/AdminLoginComponent.vue'
 
 // 导入服务
 import { useMqttService } from './components/MqttService'
-import { useDataService } from './components/DataService'
+import { useDataService, updateTimerCounts } from './components/DataService'
 
 // 使用MQTT服务
 const { connectMqttService, disconnectMqttService, mqttConnected, connecting, setDataTimeout, connectionForm } = useMqttService()
 
 // 使用数据服务
 const dataService = useDataService()
+
+// 添加数据处理间隔定时器引用
+const dataProcessInterval = ref(null)
 
 // 管理员相关
 const isAdmin = ref(false)
@@ -197,6 +200,16 @@ const currentElevatorFloor = computed(() => {
 
 // 组件挂载时
 onMounted(() => {
+  // 立即运行一次数据处理函数
+  processData()
+  
+  // 设置数据处理间隔，每200ms运行一次
+  dataProcessInterval.value = setInterval(() => {
+    processData()
+    // 更新计时器计数
+    updateTimerCounts()
+  }, 200)
+  
   // 初始化数据服务监控
   dataService.initDoorStatusMonitor()
   
@@ -215,7 +228,7 @@ onMounted(() => {
 })
 
 // 组件卸载时
-onUnmounted(() => {
+onBeforeUnmount(() => {
   // 如果存在定时器，清除
   if (dataTimeoutCheckInterval.value) {
     clearInterval(dataTimeoutCheckInterval.value)
@@ -272,6 +285,11 @@ const toggleAdminMode = () => {
   } else {
     disconnectMqtt()
   }
+}
+
+// 数据处理函数
+const processData = () => {
+  // 这里可以放置数据处理相关的代码
 }
 </script>
 
@@ -519,6 +537,48 @@ body {
     flex-grow: 1;
     border-right-width: 4px;
     border-right-color: #4d77f9;
+  }
+}
+
+/* 小屏幕横屏模式特殊处理 */
+@media (max-width: 576px) and (orientation: landscape) {
+  .unified-door-container {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+  
+  .door-panel-center {
+    width: 50%;
+    order: 1;
+  }
+  
+  .status-panels-wrapper {
+    width: 50%;
+    order: 2;
+    flex-direction: column;
+  }
+  
+  .status-panel-left-small, 
+  .status-panel-right-small {
+    width: 100%;
+    margin: 0 0 5px 0;
+  }
+  
+  .status-panel-left-small {
+    height: auto;
+    min-height: 120px;
+    margin-bottom: 5px;
+    border-left: none;
+    border-top: 3px solid #4d77f9;
+  }
+  
+  .status-panel-right-small {
+    height: auto;
+    flex-grow: 1;
+    border-right: none;
+    border-bottom: 3px solid #4d77f9;
   }
 }
 
