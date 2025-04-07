@@ -36,17 +36,30 @@ export function useDataService() {
     CRC16: 0,                // CRC校验
     
     // 用于开关门时间计算
-    doorOpenStartTime: Date.now(), // 开门起始时间
-    doorCloseStartTime: Date.now(), // 关门起始时间
+    doorOpenStartTime: null, // 开门起始时间
+    doorCloseStartTime: null, // 关门起始时间
     doorOpenDuration: 0,     // 开门用时(秒)
     doorCloseDuration: 0,    // 关门用时(秒)
+    // 修改为实时计时器
+    doorOpenTimer: {
+      isRunning: false,      // 是否正在计时
+      startTime: null,       // 开始计时的时间戳
+      seconds: 0,            // 已计时的秒数
+      formattedTime: '00:00.0' // 格式化后的时间 (mm:ss.d)
+    },
+    doorCloseTimer: {
+      isRunning: false,      // 是否正在计时
+      startTime: null,       // 开始计时的时间戳
+      seconds: 0,            // 已计时的秒数
+      formattedTime: '00:00.0' // 格式化后的时间 (mm:ss.d)
+    },
     
     // 门动画控制
     doorOpenProgress: 0,    // 开门进度(0-1)
     doorCloseProgress: 0,   // 关门进度(0-1)
     
     // 累计运行次数
-    totalOperations: 88500,
+    totalOperations: Number(localStorage.getItem('totalOperations')) || 88500,
     
     // 新增 currentSpeed 属性
     currentSpeed: 0,
@@ -61,7 +74,11 @@ export function useDataService() {
     previousPositions: [],
     previousTimes: [],
     openingStarted: false,
-    closingStarted: false
+    closingStarted: false,
+    
+    // 到位灯状态记录
+    lastOpenInPlaceLightOn: false,
+    lastCloseInPlaceLightOn: false
   })
   
   // 原始十六进制数据
@@ -90,6 +107,76 @@ export function useDataService() {
     if (shouldTimeout !== isDataTimeout.value) {
       isDataTimeout.value = shouldTimeout
     }
+  }
+  
+  // 在组件创建时设置时间监听器，每隔100ms检查灯状态
+  let doorStatusMonitor = null
+  
+  // 辅助函数：格式化时间为 mm:ss.d 格式
+  const formatTimerTime = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+    const tenths = Math.floor((seconds * 10) % 10);
+    
+    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}.${tenths}`;
+  };
+  
+  // 初始化监视器
+  const initDoorStatusMonitor = () => {
+    doorStatusMonitor = setInterval(() => {
+      // 检查开门到位灯状态（门位置>850mm且开门中）
+      const openInPlaceLightOn = doorData.doorPosition > 850 && doorData.opening && !isDataTimeout.value
+      
+      // 检查关门到位灯状态（门位置<20mm且关门中）
+      const closeInPlaceLightOn = doorData.doorPosition < 20 && doorData.closing && !isDataTimeout.value
+      
+      // 更新开门计时器
+      if (doorData.doorOpenTimer.isRunning) {
+        const elapsedSeconds = (Date.now() - doorData.doorOpenTimer.startTime) / 1000;
+        doorData.doorOpenTimer.seconds = elapsedSeconds;
+        doorData.doorOpenTimer.formattedTime = formatTimerTime(elapsedSeconds);
+      }
+      
+      // 更新关门计时器
+      if (doorData.doorCloseTimer.isRunning) {
+        const elapsedSeconds = (Date.now() - doorData.doorCloseTimer.startTime) / 1000;
+        doorData.doorCloseTimer.seconds = elapsedSeconds;
+        doorData.doorCloseTimer.formattedTime = formatTimerTime(elapsedSeconds);
+      }
+      
+      // 首次检测到开门到位灯亮，停止计时
+      if ((doorData.DO0 && !doorData.lastOpenInPlaceLightOn) || (openInPlaceLightOn && !doorData.lastOpenInPlaceLightOn)) {
+        if (doorData.doorOpenTimer.isRunning) {
+          // 停止计时器
+          doorData.doorOpenTimer.isRunning = false;
+          doorData.doorOpenDuration = doorData.doorOpenTimer.seconds;
+          // 确保显示正确的最终时间
+          doorData.doorOpenTimer.formattedTime = formatTimerTime(doorData.doorOpenTimer.seconds);
+        }
+        doorData.totalOperations++;
+        localStorage.setItem('totalOperations', doorData.totalOperations);
+        doorData.doorOpenProgress = 1;  // 开门完成
+      }
+      
+      // 首次检测到关门到位灯亮，停止计时
+      if ((doorData.DO1 && !doorData.lastCloseInPlaceLightOn) || (closeInPlaceLightOn && !doorData.lastCloseInPlaceLightOn)) {
+        if (doorData.doorCloseTimer.isRunning) {
+          // 停止计时器
+          doorData.doorCloseTimer.isRunning = false;
+          doorData.doorCloseDuration = doorData.doorCloseTimer.seconds;
+          // 确保显示正确的最终时间
+          doorData.doorCloseTimer.formattedTime = formatTimerTime(doorData.doorCloseTimer.seconds);
+        }
+        doorData.totalOperations++;
+        localStorage.setItem('totalOperations', doorData.totalOperations);
+        doorData.doorCloseProgress = 1;  // 关门完成
+      }
+      
+      // 更新灯状态记录
+      doorData.lastOpenInPlaceLightOn = doorData.DO0 || openInPlaceLightOn;
+      doorData.lastCloseInPlaceLightOn = doorData.DO1 || closeInPlaceLightOn;
+      
+    }, 100)
   }
   
   // 处理十六进制数据
@@ -136,28 +223,38 @@ export function useDataService() {
       // 解析 BYTE4-5 状态 先保存之前的状态再更新
       // 记录开门开始时间
       if ((uint8Array[5] & 0x04) === 0x04 && !wasOpening) {
-        doorData.doorOpenStartTime = Date.now()
-        doorData.doorOpenProgress = 0
+        // 启动开门计时器
+        doorData.doorOpenTimer.isRunning = true;
+        doorData.doorOpenTimer.startTime = Date.now();
+        doorData.doorOpenTimer.seconds = 0;
+        doorData.doorOpenTimer.formattedTime = '00:00.0';
+        
+        doorData.doorOpenProgress = 0;
         // 重置连续信号标志
-        doorData.continuousOpenSignal = true
-        doorData.openingStarted = true
+        doorData.continuousOpenSignal = true;
+        doorData.openingStarted = true;
       } else if ((uint8Array[5] & 0x04) === 0x00 && wasOpening) {
         // 如果开门信号中断，标记为非连续信号
-        doorData.continuousOpenSignal = false
-        doorData.openingStarted = false
+        doorData.continuousOpenSignal = false;
+        doorData.openingStarted = false;
       }
       
       // 记录关门开始时间
       if ((uint8Array[5] & 0x02) === 0x02 && !wasClosing) {
-        doorData.doorCloseStartTime = Date.now()
-        doorData.doorCloseProgress = 0
+        // 启动关门计时器
+        doorData.doorCloseTimer.isRunning = true;
+        doorData.doorCloseTimer.startTime = Date.now();
+        doorData.doorCloseTimer.seconds = 0;
+        doorData.doorCloseTimer.formattedTime = '00:00.0';
+        
+        doorData.doorCloseProgress = 0;
         // 重置连续信号标志
-        doorData.continuousCloseSignal = true
-        doorData.closingStarted = true
+        doorData.continuousCloseSignal = true;
+        doorData.closingStarted = true;
       } else if ((uint8Array[5] & 0x02) === 0x00 && wasClosing) {
         // 如果关门信号中断，标记为非连续信号
-        doorData.continuousCloseSignal = false
-        doorData.closingStarted = false
+        doorData.continuousCloseSignal = false;
+        doorData.closingStarted = false;
       }
       
       // 解析 BYTE4 状态
@@ -165,62 +262,40 @@ export function useDataService() {
       doorData.doorOpenedInPlace = ((uint8Array[4] & 0x02) === 0x02) ? 1 : 0
       doorData.motorOverheat = ((uint8Array[4] & 0x04) === 0x04) ? 1 : 0
       doorData.stall = ((uint8Array[4] & 0x08) === 0x08) ? 1 : 0
-      // 解析 BYTE5 状态
+      // 解析 BYTE5 状态 - 直接使用原始信号，不添加额外逻辑
       doorData.forceClose = ((uint8Array[5] & 0x01) === 0x01) ? 1 : 0
       doorData.closing = ((uint8Array[5] & 0x02) === 0x02) ? 1 : 0
       doorData.opening = ((uint8Array[5] & 0x04) === 0x04) ? 1 : 0
-      doorData.stallByObstacle = ((uint8Array[5] & 0x08) === 0x08) ? 1 : 0  // 假设在byte5的bit3位
+      doorData.stallByObstacle = ((uint8Array[5] & 0x08) === 0x08) ? 1 : 0
       
       // 计算开门时间 - 仅在首次检测到到位信号时更新
       if (doorData.doorOpenedInPlace && !wasDoorOpenedInPlace) {
-        if (doorData.doorOpenStartTime) {
-          // 计算实际用时（秒）
-          let actualTime = (Date.now() - doorData.doorOpenStartTime) / 1000
-          
-          // 判断开门过程中信号是否连续
-          if (doorData.continuousOpenSignal && doorData.openingStarted) {
-            // 如果开门过程中信号一直没变化，限制最大值为4.0秒
-            actualTime = Math.min(actualTime, 4.0)
-            
-            // 增加一个小的随机变化量，避免每次显示完全相同的数值 (±0.2秒)
-            let randomOffset = (Math.random() * 0.4 - 0.2)
-            actualTime = Math.max(0.1, Math.min(4.0, actualTime + randomOffset))
-          }
-          
-          doorData.doorOpenDuration = Math.max(0.1, Math.min(4.0, actualTime))
-        } else {
-          // 如果没有开始时间，设置一个默认值
-          doorData.doorOpenDuration = 1.0
+        if (doorData.doorOpenTimer.isRunning) {
+          // 停止计时器
+          doorData.doorOpenTimer.isRunning = false;
+          // 存储最终用时（秒）
+          doorData.doorOpenDuration = doorData.doorOpenTimer.seconds;
+          // 保留最终的计时显示
+          doorData.doorOpenTimer.formattedTime = formatTimerTime(doorData.doorOpenTimer.seconds);
         }
-        doorData.totalOperations++
-        doorData.doorOpenProgress = 1  // 开门完成
-        doorData.openingStarted = false // 重置开门状态
+        doorData.totalOperations++;
+        doorData.doorOpenProgress = 1;  // 开门完成
+        doorData.openingStarted = false; // 重置开门状态
       }
       
       // 计算关门时间 - 仅在首次检测到到位信号时更新
       if (doorData.doorClosedInPlace && !wasDoorClosedInPlace) {
-        if (doorData.doorCloseStartTime) {
-          // 计算实际用时（秒）
-          let actualTime = (Date.now() - doorData.doorCloseStartTime) / 1000
-          
-          // 判断关门过程中信号是否连续
-          if (doorData.continuousCloseSignal && doorData.closingStarted) {
-            // 如果关门过程中信号一直没变化，限制最大值为4.0秒
-            actualTime = Math.min(actualTime, 4.0)
-            
-            // 增加一个小的随机变化量，避免每次显示完全相同的数值 (±0.2秒)
-            let randomOffset = (Math.random() * 0.4 - 0.2)
-            actualTime = Math.max(0.1, Math.min(4.0, actualTime + randomOffset))
-          }
-          
-          doorData.doorCloseDuration = Math.max(0.1, Math.min(4.0, actualTime))
-        } else {
-          // 如果没有开始时间，设置一个默认值
-          doorData.doorCloseDuration = 1.0
+        if (doorData.doorCloseTimer.isRunning) {
+          // 停止计时器
+          doorData.doorCloseTimer.isRunning = false;
+          // 存储最终用时（秒）
+          doorData.doorCloseDuration = doorData.doorCloseTimer.seconds;
+          // 保留最终的计时显示
+          doorData.doorCloseTimer.formattedTime = formatTimerTime(doorData.doorCloseTimer.seconds);
         }
-        doorData.totalOperations++
-        doorData.doorCloseProgress = 1  // 关门完成
-        doorData.closingStarted = false // 重置关门状态
+        doorData.totalOperations++;
+        doorData.doorCloseProgress = 1;  // 关门完成
+        doorData.closingStarted = false; // 重置关门状态
       }
       
       // 解析 BYTE6 输入端子状态
@@ -248,7 +323,10 @@ export function useDataService() {
       // 解析输出电流
       doorData.outputCurrent = ((uint8Array[14] << 8) | uint8Array[15]) / 100
       // 解析门位置 - 调整处理逻辑以匹配您的门位置数据
-      doorData.doorPosition = ((uint8Array[16] << 8) | uint8Array[17]) / 10
+      const rawPosition = ((uint8Array[16] << 8) | uint8Array[17]) / 10
+      // 根据要求计算: (实际值-40mm)×2，如为负数则显示0
+      let calculatedPosition = (rawPosition - 40) * 2
+      doorData.doorPosition = calculatedPosition > 0 ? calculatedPosition : 0
       // 解析反馈速度
       doorData.feedbackSpeed = ((uint8Array[18] << 8) | uint8Array[19]) / 1000
       
@@ -312,6 +390,13 @@ export function useDataService() {
   const doorAnimationUpdate = () => {
     if (isDataTimeout.value) return;
     
+    // 强制检查开门到位状态，如果开门到位信号或开门到位输出为真，立即设置门位置为500mm（完全打开）
+    if (doorData.doorOpenedInPlace || doorData.DO0) {
+      doorData.animationDoorPosition = 500; // 使用500mm作为完全打开的参考值
+      doorData.doorPosition = Math.max(doorData.doorPosition, 500); // 确保实际门位置也至少为500mm
+      return; // 直接返回，不再进行插值计算
+    }
+    
     // 使用插值算法计算平滑动画位置
     if (doorData.previousPositions.length >= 2) {
       // 获取最新的实际位置数据
@@ -338,11 +423,30 @@ export function useDataService() {
       doorData.animationDoorPosition = doorData.animationDoorPosition || currentPosition;
       
       // 根据实际位置和平滑位置计算动画位置
-      const smoothFactor = 0.5; // 平滑系数，值越大动画越迅速跟随
+      const smoothFactor = 0.7; // 增大平滑系数，使动画更快跟随
       doorData.animationDoorPosition += (smoothPosition - doorData.animationDoorPosition) * smoothFactor;
+      
+      // 如果开门到位或关门到位，快速结束动画
+      if (doorData.doorOpenedInPlace || doorData.DO0) {
+        // 立即设置到最终位置（完全打开）
+        doorData.animationDoorPosition = 500;
+      } else if (doorData.doorClosedInPlace) {
+        // 立即设置到最终位置（完全关闭）
+        doorData.animationDoorPosition = 0;
+      }
+      
+      // 确保动画位置不超过500mm，为完全打开状态
+      if (doorData.animationDoorPosition > 500) {
+        doorData.animationDoorPosition = 500;
+      }
     } else {
       // 数据不足，直接使用当前位置
       doorData.animationDoorPosition = doorData.doorPosition;
+      
+      // 确保动画位置不超过500mm
+      if (doorData.animationDoorPosition > 500) {
+        doorData.animationDoorPosition = 500;
+      }
     }
   }
   
@@ -417,6 +521,7 @@ export function useDataService() {
     addMessageToHistory,
     doorAnimationUpdate,
     setDataTimeout,
-    checkDataTimeout
+    checkDataTimeout,
+    initDoorStatusMonitor
   }
 } 

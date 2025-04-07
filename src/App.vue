@@ -33,26 +33,27 @@
             <!-- 左侧门控器状态 -->
             <door-status-component 
               :key="'left-panel'"
-              :door-data="doorData" 
-              :is-data-timeout="isDataTimeout"
-              :valid-topic-received="validTopicReceived"
+              :door-data="dataService.doorData" 
+              :is-data-timeout="dataService.isDataTimeout.value"
+              :valid-topic-received="dataService.validTopicReceived.value"
               class="status-panel-left"
               panel-position="left" />
             
             <!-- 中间电梯门组件 -->
             <elevator-door-component 
               :key="'door-panel'"
-              :door-data="doorData" 
-              :is-data-timeout="isDataTimeout" 
+              :door-data="dataService.doorData" 
+              :is-data-timeout="dataService.isDataTimeout.value" 
               :is-admin-mode="isAdminMode"
+              ref="elevatorDoorRef"
               class="door-panel-center" />
             
             <!-- 右侧门控器状态 -->
             <door-status-component 
               :key="'right-panel'"
-              :door-data="doorData" 
-              :is-data-timeout="isDataTimeout"
-              :valid-topic-received="validTopicReceived"
+              :door-data="dataService.doorData" 
+              :is-data-timeout="dataService.isDataTimeout.value"
+              :valid-topic-received="dataService.validTopicReceived.value"
               class="status-panel-right"
               panel-position="right" />
             
@@ -61,18 +62,18 @@
               <!-- 左侧门控器状态（小屏幕复制） -->
               <door-status-component 
                 :key="'left-panel-small'"
-                :door-data="doorData" 
-                :is-data-timeout="isDataTimeout"
-                :valid-topic-received="validTopicReceived"
+                :door-data="dataService.doorData" 
+                :is-data-timeout="dataService.isDataTimeout.value"
+                :valid-topic-received="dataService.validTopicReceived.value"
                 class="status-panel-left-small"
                 panel-position="left" />
               
               <!-- 右侧门控器状态（小屏幕复制） -->
               <door-status-component 
                 :key="'right-panel-small'"
-                :door-data="doorData" 
-                :is-data-timeout="isDataTimeout"
-                :valid-topic-received="validTopicReceived"
+                :door-data="dataService.doorData" 
+                :is-data-timeout="dataService.isDataTimeout.value"
+                :valid-topic-received="dataService.validTopicReceived.value"
                 class="status-panel-right-small"
                 panel-position="right" />
             </div>
@@ -81,9 +82,9 @@
           <!-- 门机运行状态组件 -->
           <door-status-component 
             :key="'main-panel'"
-            :door-data="doorData" 
-            :is-data-timeout="isDataTimeout"
-            :valid-topic-received="validTopicReceived"
+            :door-data="{...dataService.doorData, floor: currentElevatorFloor}" 
+            :is-data-timeout="dataService.isDataTimeout.value"
+            :valid-topic-received="dataService.validTopicReceived.value"
             class="main-status-panel"
             panel-position="main" />
           
@@ -91,9 +92,9 @@
           <hex-display-component 
             v-if="isAdminMode" 
             :key="'hex-display'"
-            :hex-bytes="lastMessageHex" 
-            :last-update-time="lastUpdateTime" 
-            :messages="hexMessageHistory" />
+            :hex-bytes="dataService.lastMessageHex" 
+            :last-update-time="dataService.lastUpdateTime" 
+            :messages="dataService.hexMessageHistory" />
         </div>
       </el-main>
       
@@ -139,7 +140,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import LogoImage from './assets/images/logo.png'
 
@@ -149,34 +150,18 @@ import ElevatorDoorComponent from './components/ElevatorDoorComponent.vue'
 import DoorStatusComponent from './components/DoorStatusComponent.vue'
 import HexDisplayComponent from './components/HexDisplayComponent.vue'
 import FooterComponent from './components/FooterComponent.vue'
+import HistogramComponent from './components/HistogramComponent.vue'
+import AdminLoginComponent from './components/AdminLoginComponent.vue'
 
 // 导入服务
 import { useMqttService } from './components/MqttService'
 import { useDataService } from './components/DataService'
 
 // 使用MQTT服务
-const {
-  mqttConnected,
-  connecting,
-  connectionForm,
-  connectMqtt: connectMqttService,
-  disconnectMqtt: disconnectMqttService
-} = useMqttService()
+const { connectMqttService, disconnectMqttService, mqttConnected, connecting, setDataTimeout, connectionForm } = useMqttService()
 
 // 使用数据服务
-const {
-  doorData,
-  lastMessageHex,
-  lastUpdateTime,
-  hexMessageHistory,
-  isDataTimeout,
-  lastDataReceiveTime,
-  validTopicReceived,
-  processHexData,
-  doorAnimationUpdate,
-  setDataTimeout,
-  checkDataTimeout
-} = useDataService()
+const dataService = useDataService()
 
 // 管理员相关
 const isAdmin = ref(false)
@@ -194,6 +179,56 @@ const batteryLevel = ref(85)
 
 // 管理员模式状态
 const isAdminMode = ref(false)
+
+// 数据超时检查定时器
+const dataTimeoutCheckInterval = ref(null)
+const doorAnimationInterval = ref(null) // 门位置动画更新定时器
+
+// 电梯门组件引用
+const elevatorDoorRef = ref(null)
+
+// 获取电梯当前楼层
+const currentElevatorFloor = computed(() => {
+  if (elevatorDoorRef.value) {
+    return elevatorDoorRef.value.currentFloor;
+  }
+  return 1;
+})
+
+// 组件挂载时
+onMounted(() => {
+  // 初始化数据服务监控
+  dataService.initDoorStatusMonitor()
+  
+  // 自动连接MQTT
+  connectMqtt()
+  
+  // 设置定时器，定期检查数据是否超时
+  dataTimeoutCheckInterval.value = setInterval(() => {
+    dataService.checkDataTimeout()
+  }, 1000)
+  
+  // 设置门位置动画更新定时器
+  doorAnimationInterval.value = setInterval(() => {
+    dataService.doorAnimationUpdate()
+  }, 16) // 约60fps
+})
+
+// 组件卸载时
+onUnmounted(() => {
+  // 如果存在定时器，清除
+  if (dataTimeoutCheckInterval.value) {
+    clearInterval(dataTimeoutCheckInterval.value)
+  }
+  
+  // 清除门位置动画更新定时器
+  if (doorAnimationInterval.value) {
+    clearInterval(doorAnimationInterval.value)
+  }
+  
+  // 断开MQTT连接
+  disconnectMqtt()
+})
 
 // 测试管理员登录
 const testAdminLogin = () => {
@@ -215,15 +250,18 @@ const adminLogout = () => {
 
 // 自定义MQTT连接方法
 const connectMqtt = () => {
-  connectMqttService(processHexData)
+  // 传递数据处理函数给 MQTT 服务
+  connectMqttService(dataService.processHexData);
+  // 同时传递数据超时处理函数
+  setDataTimeout(dataService.setDataTimeout);
 }
 
 // 自定义MQTT断开方法
 const disconnectMqtt = () => {
   disconnectMqttService().then(() => {
-    // 设置数据超时状态，使显示停止更新
-    setDataTimeout()
-  })
+    // 断开连接后直接调用数据服务的超时设置方法
+    dataService.setDataTimeout();
+  });
 }
 
 // 切换管理员模式
@@ -235,36 +273,6 @@ const toggleAdminMode = () => {
     disconnectMqtt()
   }
 }
-
-onMounted(() => {
-  // 每100ms检查一次数据更新和动画
-  const animationInterval = setInterval(() => {
-    doorAnimationUpdate()
-  }, 100)
-  
-  // 500ms检查一次数据超时状态
-  const timeoutCheckInterval = setInterval(() => {
-    checkDataTimeout()
-  }, 500)
-  
-  // 定期检查MQTT连接状态，如果未连接则尝试重连
-  const connectionCheckInterval = setInterval(() => {
-    if (!mqttConnected.value && !connecting.value) {
-      console.log('检测到MQTT未连接，尝试重连...')
-      connectMqtt()
-    }
-  }, 5000)
-  
-  // 组件销毁前清除定时器
-  onBeforeUnmount(() => {
-    clearInterval(animationInterval)
-    clearInterval(timeoutCheckInterval)
-    clearInterval(connectionCheckInterval)
-  })
-  
-  // 自动连接MQTT
-  connectMqtt()
-})
 </script>
 
 <style>
@@ -367,34 +375,29 @@ body {
   display: flex;
   width: 100%;
   max-width: 100%;
-  justify-content: space-between;
-  gap: 0;
   margin: 10px 0;
   background-color: #132859;
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
   border: 1px solid #1e3a8a;
-  padding: 6px;
+  padding: 5px;
   box-sizing: border-box;
   min-height: 350px;
-  flex-direction: row;
   flex-wrap: nowrap;
 }
 
+/* 大屏幕面板样式 */
 .status-panel-left, .status-panel-right {
-  width: 32%;
   padding: 0;
   margin: 0;
   box-sizing: border-box;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  height: 330px;
-  flex-grow: 1;
+  height: 340px;
 }
 
 .door-panel-center {
-  width: 36%;
   padding: 0;
   margin: 0;
   box-sizing: border-box;
@@ -402,8 +405,33 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 330px;
-  flex-grow: 1;
+  height: 340px;
+}
+
+/* 所有媒体查询的处理 */
+@media (min-width: 769px) {
+  /* 大屏幕下的布局 */
+  .unified-door-container {
+    display: grid;
+    grid-template-columns: 33% 34% 33%;
+    grid-gap: 0;
+  }
+  
+  .status-panel-left {
+    grid-column: 1;
+  }
+  
+  .door-panel-center {
+    grid-column: 2;
+  }
+  
+  .status-panel-right {
+    grid-column: 3;
+  }
+  
+  .status-panels-wrapper {
+    display: none !important;
+  }
 }
 
 /* 小屏幕面板样式 */
@@ -411,17 +439,18 @@ body {
   height: auto;
   min-height: 250px;
   box-sizing: border-box;
+  background-color: #061230;
+  overflow: hidden;
 }
 
 .status-panel-left-small {
-  width: 48%;
-  padding-right: 1px;
+  border-left: 3px solid #3a5fc4;
+  background-color: #071328;
 }
 
 .status-panel-right-small {
-  width: 52%;
-  padding-left: 1px;
-  flex-grow: 1;
+  border-right: 3px solid #3a5fc4;
+  background-color: #071328;
 }
 
 /* 包装左右面板的容器 - 默认隐藏 */
@@ -431,109 +460,77 @@ body {
   justify-content: space-between;
 }
 
-/* 所有媒体查询的处理 */
-@media (min-width: 769px) {
-  /* 大屏幕下的布局 */
+/* 媒体查询 - 中等屏幕及以下设备 */
+@media (max-width: 768px) {
+  /* 中小屏幕下的布局 */
   .unified-door-container {
-    flex-direction: row;
-    gap: 0;
-  }
-  
-  .status-panel-left, .status-panel-right {
     display: flex;
-    width: 32%;
-  }
-  
-  .door-panel-center {
-    width: 36%;
-  }
-  
-  .status-panels-wrapper {
-    display: none;
-  }
-}
-
-/* 媒体查询 - 中等屏幕设备 */
-@media (max-width: 768px) and (min-width: 577px) {
-  /* 中屏幕下的布局 */
-  .unified-door-container {
     flex-direction: column;
-    padding: 6px;
+    padding: 5px;
     min-height: auto;
-    gap: 4px;
   }
   
   .door-panel-center {
     width: 100%;
+    height: auto;
+    min-height: 280px;
     order: 1;
-    margin-bottom: 4px;
-    display: flex;
+    margin-bottom: 5px;
   }
   
   .status-panel-left, .status-panel-right {
-    display: none;
+    display: none !important;
   }
   
   .status-panels-wrapper {
-    display: flex;
+    display: flex !important;
     flex-direction: row;
     order: 2;
     width: 100%;
+    justify-content: space-between;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
   }
   
   .status-panel-left-small {
-    width: 48%;
-    padding-right: 1px;
+    width: 33%;
+    margin-right: 4px;
   }
   
   .status-panel-right-small {
-    width: 52%;
-    padding-left: 1px;
+    width: 67%;
+    margin-left: 0;
+    flex-grow: 1;
   }
 }
 
 /* 媒体查询 - 小屏幕设备 */
 @media (max-width: 576px) {
-  /* 小屏幕下的布局 */
-  .unified-door-container {
-    flex-direction: column;
-    padding: 6px;
-    min-height: auto;
-    gap: 4px;
-  }
-  
-  .door-panel-center {
-    width: 100%;
-    order: 1;
-    margin-bottom: 4px;
-    display: flex;
-  }
-  
-  .status-panel-left, .status-panel-right {
-    display: none;
-  }
-  
-  .status-panels-wrapper {
-    display: flex;
-    flex-direction: row;
-    order: 2;
-    width: 100%;
-    padding: 0;
-    margin: 0;
-  }
-  
-  /* 确保right面板完全填充可用空间 */
   .status-panel-left-small {
-    width: 46%;
-    padding-right: 0;
-    margin-right: 1px;
+    width: 27%;
+    margin-right: 3px;
+    border-left-width: 4px;
+    border-left-color: #4d77f9;
   }
   
   .status-panel-right-small {
-    width: 54%;
-    padding-left: 0;
-    margin-left: 1px;
+    width: 73%;
     flex-grow: 1;
+    border-right-width: 4px;
+    border-right-color: #4d77f9;
+  }
+}
+
+/* 媒体查询 - 特小屏幕设备 */
+@media (max-width: 480px) {
+  .status-panel-left-small {
+    width: 24%;
+    margin-right: 2px;
+  }
+  
+  .status-panel-right-small {
+    width: 76%;
   }
   
   /* 调整天气和时间显示，避免与Logo重叠 */

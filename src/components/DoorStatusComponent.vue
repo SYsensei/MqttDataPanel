@@ -8,25 +8,26 @@
         <div class="status-grid">
           <!-- 门状态 -->
           <div class="status-item">
-            <div class="led-indicator green" :class="{ active: !isDataTimeout }"></div>
+            <div class="led-indicator green" :class="{ active: !isDataTimeout && validTopicReceived }"></div>
             <div class="status-text">
               <div class="status-name">正常</div>
             </div>
           </div>
           
           <div class="status-item">
-            <div class="led-indicator green" :class="{ active: doorData.opening && !isDataTimeout }"></div>
+            <div class="led-indicator green" :class="{ active: doorData.opening && !doorData.DO0 && !isDataTimeout }"></div>
             <div class="status-text">
               <div class="status-name">开门中...</div>
-              <div class="status-detail fixed-height" v-if="doorData.opening && !isDataTimeout">正在开门，请注意安全</div>
+              <div class="status-detail fixed-height" v-if="doorData.opening && !doorData.DO0 && !isDataTimeout">正在开门，请注意安全</div>
             </div>
           </div>
           
           <div class="status-item">
-            <div class="led-indicator green" :class="{ active: doorData.doorOpenedInPlace && !isDataTimeout }"></div>
+            <div class="led-indicator green" :class="{ active: doorData.DO0 && !isDataTimeout }"></div>
             <div class="status-text">
               <div class="status-name">开门到位</div>
               <div class="status-detail fixed-height" v-if="doorData.doorOpenedInPlace && !isDataTimeout">开门已完成，用时{{ displayDoorOpenDuration }}s</div>
+              <div class="status-detail fixed-height" v-else-if="doorData.doorOpenTimer.isRunning && !isDataTimeout">正在开门...</div>
             </div>
           </div>
           
@@ -39,23 +40,24 @@
           </div>
           
           <div class="status-item">
-            <div class="led-indicator green" :class="{ active: doorData.closing && !isDataTimeout }"></div>
+            <div class="led-indicator green" :class="{ active: doorData.closing && !doorData.DO1 && !isDataTimeout }"></div>
             <div class="status-text">
               <div class="status-name">关门中...</div>
-              <div class="status-detail fixed-height" v-if="doorData.closing && !isDataTimeout">正在关门，请注意安全</div>
+              <div class="status-detail fixed-height" v-if="doorData.closing && !doorData.DO1 && !isDataTimeout">正在关门，请注意安全</div>
             </div>
           </div>
           
           <div class="status-item">
-            <div class="led-indicator green" :class="{ active: doorData.doorClosedInPlace && !isDataTimeout }"></div>
+            <div class="led-indicator green" :class="{ active: doorData.DO1 && !isDataTimeout }"></div>
             <div class="status-text">
               <div class="status-name">关门到位</div>
               <div class="status-detail fixed-height" v-if="doorData.doorClosedInPlace && !isDataTimeout">关门已完成，用时{{ displayDoorCloseDuration }}s</div>
+              <div class="status-detail fixed-height" v-else-if="doorData.doorCloseTimer.isRunning && !isDataTimeout">正在关门...</div>
             </div>
           </div>
           
           <div class="status-item">
-            <div class="led-indicator green" :class="{ active: doorData.DI3 && !isDataTimeout }"></div>
+            <div class="led-indicator green" :class="{ active: doorData.doorPosition < 20 && !isDataTimeout }"></div>
             <div class="status-text">
               <div class="status-name">门锁回路</div>
               <div class="status-detail fixed-height"></div>
@@ -87,7 +89,7 @@
             <div class="led-indicator yellow" :class="{ active: doorData.DI0_ && !isDataTimeout }"></div>
             <div class="status-text">
               <div class="status-name">门机同步带松动</div>
-              <div class="status-detail fixed-height">需拧紧 {{ doorData.turns.toFixed(1) }} 圈</div>
+              <div class="status-detail fixed-height">调节螺丝需拧紧 {{ doorData.turns.toFixed(1) }} 圈</div>
             </div>
           </div>
           
@@ -139,12 +141,12 @@
       <div class="status-grid-vertical">
         <!-- 输入信号 -->
         <div class="status-item-compact">
-          <div class="led-indicator green" :class="{ active: doorData.DI0 && !isDataTimeout }"></div>
+          <div class="led-indicator green" :class="{ active: doorData.opening && !isDataTimeout }"></div>
           <div class="status-text-compact">开门端子输入</div>
         </div>
         
         <div class="status-item-compact">
-          <div class="led-indicator green" :class="{ active: doorData.DI1 && !isDataTimeout }"></div>
+          <div class="led-indicator green" :class="{ active: doorData.closing && !isDataTimeout }"></div>
           <div class="status-text-compact">关门端子输入</div>
         </div>
         
@@ -154,8 +156,8 @@
         </div>
         
         <div class="status-item-compact">
-          <div class="led-indicator green" :class="{ active: doorData.DI3 && !isDataTimeout }"></div>
-          <div class="status-text-compact">开门到位开关输入</div>
+          <div class="led-indicator green" :class="{ active: doorData.doorPosition < 20 && !isDataTimeout }"></div>
+          <div class="status-text-compact">关门到位开关输入</div>
         </div>
         
         <!-- 输出信号 -->
@@ -213,7 +215,7 @@
           </div>
           
           <div class="data-item">
-            <div class="data-name">目标速度</div>
+            <div class="data-name">给定速度</div>
             <div class="data-gauge">
               <div class="gauge-bar">
                 <div class="gauge-fill" :style="{ width: `${parseFloat(doorData.givenSpeed) / 0.5 * 100}%` }"></div>
@@ -236,7 +238,7 @@
             <div class="data-name">门板位置</div>
             <div class="data-gauge">
               <div class="gauge-bar">
-                <div class="gauge-fill" :style="{ width: `${parseFloat(doorData.doorPosition) / 500 * 100}%` }"></div>
+                <div class="gauge-fill" :style="{ width: `${parseFloat(doorData.doorPosition) / 900 * 100}%` }"></div>
               </div>
               <div class="gauge-value">{{ parseFloat(doorData.doorPosition).toFixed(1) }}mm</div>
             </div>
@@ -286,25 +288,15 @@ const isLeftPanel = computed(() => props.panelPosition === 'left')
 // 计算是否显示右侧面板内容
 const isRightPanel = computed(() => props.panelPosition === 'right')
 
-// 计算显示的开门时间（限制最大值为4.0秒）
+// 计算显示的开门时间
 const displayDoorOpenDuration = computed(() => {
   const duration = props.doorData.doorOpenDuration || 0
-  // 如果信号连续没有断开，限制最大显示为4.0秒
-  if (props.doorData.continuousOpenSignal) {
-    return Math.min(duration, 4.0).toFixed(1)
-  }
-  // 否则显示原始值
   return duration.toFixed(1)
 })
 
-// 计算显示的关门时间（限制最大值为4.0秒）
+// 计算显示的关门时间
 const displayDoorCloseDuration = computed(() => {
   const duration = props.doorData.doorCloseDuration || 0
-  // 如果信号连续没有断开，限制最大显示为4.0秒
-  if (props.doorData.continuousCloseSignal) {
-    return Math.min(duration, 4.0).toFixed(1)
-  }
-  // 否则显示原始值
   return duration.toFixed(1)
 })
 </script>
@@ -787,5 +779,25 @@ const displayDoorCloseDuration = computed(() => {
   color: #cad2ff;
   font-size: 14px;
   min-height: 20px;
+}
+
+/* 计时器计数器样式 */
+.timer-counter {
+  font-size: 10px;
+  color: #6c92ff;
+  margin-left: 4px;
+}
+
+/* 正在计时样式 */
+.timer-running {
+  font-size: 12px;
+  color: #f59e0b;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
 }
 </style> 

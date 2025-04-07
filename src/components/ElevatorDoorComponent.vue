@@ -2,7 +2,7 @@
   <div class="elevator-door-container">
     <!-- 楼层显示 -->
     <div class="floor-display-area">
-      <div class="floor-direction left">
+      <div class="floor-direction left" :class="{ active: isUpActive }">
         <div class="arrow-up"></div>
       </div>
       <div class="floor-display-panel">
@@ -10,7 +10,7 @@
           <div class="floor-number">{{ floorNumber || '12' }}</div>
         </div>
       </div>
-      <div class="floor-direction right">
+      <div class="floor-direction right" :class="{ active: isDownActive }">
         <div class="arrow-down"></div>
       </div>
     </div>
@@ -89,7 +89,12 @@ const props = defineProps({
 })
 
 // 记录最大门位置
-const maxDoorPosition = ref(500)
+const maxDoorPosition = ref(900)
+
+// 楼层相关数据
+const currentFloor = ref(1)
+const isGoingUp = ref(true)
+const lastLockCircuitState = ref(false)
 
 // 用于存储门位置历史数据的数组
 const positionHistory = ref([])
@@ -109,6 +114,113 @@ const interpolationSpeed = 0.5     // 增大插值速度系数以更快响应
 // 声明动画和记录器变量
 let animationFrame = null
 let positionRecorder = null
+
+// 添加楼层变化状态标志和计时器
+const isFloorChanging = ref(false);
+const floorChangeTimer = ref(null);
+const totalFloorsToChange = ref(0); // 总共需要变化的楼层数
+const remainingFloors = ref(0);     // 剩余需要变化的楼层数
+
+// 监听门锁回路状态变化和楼层更新
+watch(() => [props.doorData.doorPosition < 20, props.doorData.DO1], ([isDoorLocked, isDoorClosed]) => {
+  // 只有当门锁回路和关门到位信号同时为真时才触发
+  const shouldStartFloorChange = isDoorLocked && isDoorClosed && !props.isDataTimeout;
+  
+  // 只在两个条件同时从假变为真时才处理
+  if (shouldStartFloorChange && !lastLockCircuitState.value) {
+    // 门锁回路和关门到位同时满足，开始楼层变化过程
+    isFloorChanging.value = true;
+    
+    // 设置一个延时，2秒后开始楼层变化
+    setTimeout(() => {
+      // 固定变化3层，不再随机
+      totalFloorsToChange.value = 3;
+      remainingFloors.value = totalFloorsToChange.value;
+      
+      // 开始楼层变化，每两秒变化一层
+      changeFloor();
+    }, 2000); // 延时2秒后更新楼层
+  }
+  // 更新门锁回路状态记录
+  lastLockCircuitState.value = shouldStartFloorChange;
+}, { deep: true })
+
+// 楼层变化函数
+function changeFloor() {
+  if (remainingFloors.value <= 0) {
+    // 所有楼层变化完成后，两秒后熄灭方向灯
+    floorChangeTimer.value = setTimeout(() => {
+      isFloorChanging.value = false; // 停止变化过程，熄灭方向灯
+    }, 2000);
+    return;
+  }
+  
+  // 检查上行或下行
+  if (isGoingUp.value) {
+    // 上行，楼层增加
+    if (currentFloor.value < 19) {
+      currentFloor.value += 1; // 一次只改变一层
+      // 只在内部更新楼层，不触发其他组件更新
+    } else {
+      // 达到最高楼层，改变方向
+      isGoingUp.value = false;
+      // 延迟两秒再开始下行
+      floorChangeTimer.value = setTimeout(() => {
+        currentFloor.value -= 1;
+        remainingFloors.value -= 1;
+        
+        // 如果还有剩余楼层，继续变化
+        if (remainingFloors.value > 0) {
+          floorChangeTimer.value = setTimeout(changeFloor, 2000);
+        } else {
+          // 变化完成，两秒后熄灭方向灯
+          floorChangeTimer.value = setTimeout(() => {
+            isFloorChanging.value = false;
+          }, 2000);
+        }
+      }, 2000);
+      return;
+    }
+  } else {
+    // 下行，楼层减少
+    if (currentFloor.value > 1) {
+      currentFloor.value -= 1; // 一次只改变一层
+      // 只在内部更新楼层，不触发其他组件更新
+    } else {
+      // 达到最低楼层，改变方向
+      isGoingUp.value = true;
+      // 延迟两秒再开始上行
+      floorChangeTimer.value = setTimeout(() => {
+        currentFloor.value += 1;
+        remainingFloors.value -= 1;
+        
+        // 如果还有剩余楼层，继续变化
+        if (remainingFloors.value > 0) {
+          floorChangeTimer.value = setTimeout(changeFloor, 2000);
+        } else {
+          // 变化完成，两秒后熄灭方向灯
+          floorChangeTimer.value = setTimeout(() => {
+            isFloorChanging.value = false;
+          }, 2000);
+        }
+      }, 2000);
+      return;
+    }
+  }
+  
+  // 减少剩余楼层数
+  remainingFloors.value -= 1;
+  
+  // 如果还有剩余楼层，两秒后继续变化
+  if (remainingFloors.value > 0) {
+    floorChangeTimer.value = setTimeout(changeFloor, 2000);
+  } else {
+    // 变化完成，两秒后熄灭方向灯
+    floorChangeTimer.value = setTimeout(() => {
+      isFloorChanging.value = false;
+    }, 2000);
+  }
+}
 
 // 监听门位置的变化，更新目标位置
 watch(() => props.doorData.doorPosition, (newValue) => {
@@ -131,8 +243,13 @@ function animatePosition() {
   // 应用插值，创建平滑过渡
   if (Math.abs(diff) > 0.1) {
     // 使用非线性插值，差距越大移动越快
-    const speed = Math.min(Math.abs(diff) * 0.05 + interpolationSpeed, 0.9) // 增大速度变化参数和最大速度
+    const speed = Math.min(Math.abs(diff) * 0.1 + interpolationSpeed, 0.95) // 增大速度变化参数和最大速度
     currentDoorPosition.value += diff * speed
+    
+    // 如果门几乎到位（差值小于10），加速到位
+    if (Math.abs(diff) < 10) {
+      currentDoorPosition.value = targetDoorPosition.value
+    }
   } else {
     currentDoorPosition.value = targetDoorPosition.value
   }
@@ -143,6 +260,11 @@ function animatePosition() {
 
 // 在组件挂载时启动动画循环
 onMounted(() => {
+  // 初始化楼层数据
+  currentFloor.value = 1
+  isGoingUp.value = true
+  lastLockCircuitState.value = false
+  
   // 只在管理员模式下启动记录器
   if (props.isAdminMode) {
     positionRecorder = setInterval(() => {
@@ -178,13 +300,29 @@ onUnmounted(() => {
   if (animationFrame) {
     cancelAnimationFrame(animationFrame)
   }
+  if (floorChangeTimer.value) {
+    clearTimeout(floorChangeTimer.value)
+  }
 })
 
 // 计算当前楼层
 const floorNumber = computed(() => {
-  if (props.isDataTimeout) return '0'
-  // 使用门数据中的楼层信息
-  return props.doorData.floor ? props.doorData.floor.toString() : '0'
+  // 如果数据超时，显示0
+  if (props.isDataTimeout) return '0';
+  
+  // 始终使用内部管理的楼层（模拟楼层）
+  return currentFloor.value.toString();
+})
+
+// 计算上行和下行灯状态
+const isUpActive = computed(() => {
+  // 只在门锁回路通了并且正在上行时才亮起，但在变化结束后熄灭
+  return isGoingUp.value && props.doorData.doorPosition < 20 && !props.isDataTimeout && isFloorChanging.value;
+})
+
+const isDownActive = computed(() => {
+  // 只在门锁回路通了并且正在下行时才亮起，但在变化结束后熄灭
+  return !isGoingUp.value && props.doorData.doorPosition < 20 && !props.isDataTimeout && isFloorChanging.value;
 })
 
 // 门位置文本
@@ -198,6 +336,15 @@ const doorOpenPercentage = computed(() => {
   // 使用插值后的currentDoorPosition计算百分比
   const percentage = (currentDoorPosition.value / maxDoorPosition.value) * 100
   return Math.min(100, Math.max(0, percentage))
+})
+
+// 门到位状态
+const isDoorOpenedInPlace = computed(() => {
+  return currentDoorPosition.value > 850 && !props.isDataTimeout
+})
+
+const isDoorClosedInPlace = computed(() => {
+  return currentDoorPosition.value < 20 && !props.isDataTimeout
 })
 
 // 门开启百分比计算，用于动画
@@ -275,6 +422,11 @@ const doorRightStyle = computed(() => {
     transform: `translateX(${openPercentage}%)`,
     transition: 'transform 0.5s ease-out'
   }
+})
+
+// 将currentFloor暴露给父组件
+defineExpose({
+  currentFloor
 })
 </script>
 
@@ -357,6 +509,13 @@ const doorRightStyle = computed(() => {
   justify-content: center;
   border: 2px solid #3a5fc4;
   box-shadow: 0 0 10px rgba(74, 109, 255, 0.5);
+  opacity: 0.4;
+  transition: all 0.3s ease;
+}
+
+.floor-direction.active {
+  opacity: 1;
+  box-shadow: 0 0 15px rgba(74, 109, 255, 0.8);
 }
 
 .floor-direction.left {
@@ -612,5 +771,44 @@ const doorRightStyle = computed(() => {
   .arrow-down {
     border-top: 12px solid #4d77f9;
   }
+}
+
+/* 门位置指示灯 */
+.door-status-indicators {
+  position: absolute;
+  bottom: 5px;
+  left: 0;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 10px;
+  box-sizing: border-box;
+}
+
+.door-indicator {
+  background-color: #061230;
+  color: #3a5fc4;
+  border: 1px solid #3a5fc4;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 12px;
+  opacity: 0.6;
+  transition: all 0.3s;
+}
+
+.door-indicator.active {
+  opacity: 1;
+  background-color: #071328;
+  color: #4d77f9;
+  border-color: #4d77f9;
+  box-shadow: 0 0 10px rgba(77, 119, 249, 0.5);
+}
+
+.door-indicator.open {
+  margin-right: auto;
+}
+
+.door-indicator.close {
+  margin-left: auto;
 }
 </style> 

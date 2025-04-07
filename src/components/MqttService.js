@@ -2,10 +2,8 @@ import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 
 export function useMqttService() {
-  let mqtt = null
-  let client = null
+  const mqttClient = ref(null)
   const mqttConnected = ref(false)
-  const usingMqttLibrary = ref(false)
   const connecting = ref(false)
   
   const connectionStatus = reactive({
@@ -13,11 +11,41 @@ export function useMqttService() {
     type: 'danger'
   })
   
-  // 连接表单
+  // 添加处理MQTT消息的回调函数
+  let messageProcessor = null;
+  
+  // 添加设置数据超时的回调函数
+  let timeoutHandler = null;
+  
+  // 添加处理MQTT消息的函数
+  const processHexData = (message) => {
+    if (messageProcessor && typeof messageProcessor === 'function') {
+      messageProcessor(message);
+    } else {
+      console.warn('MQTT消息处理器未设置，消息未被处理');
+    }
+  }
+  
+  // 添加设置数据超时的函数
+  const setDataTimeout = (handler) => {
+    if (handler && typeof handler === 'function') {
+      timeoutHandler = handler;
+    }
+    
+    if (timeoutHandler && typeof timeoutHandler === 'function') {
+      timeoutHandler();
+    } else {
+      console.warn('数据超时处理器未设置');
+    }
+  }
+  
+  // MQTT连接表单
   const connectionForm = reactive({
-    broker: 'wss://broker-cn.emqx.io:8084/mqtt',
+    broker: 'ws://broker.emqx.io:8083/mqtt',
+    port: 8083,
     username: '',
     password: '',
+    ssl: false,
     topic: 'jmjdoor'
   })
   
@@ -25,7 +53,14 @@ export function useMqttService() {
   const serverPresets = [
     {
       name: '默认服务器',
-      broker: 'wss://broker-cn.emqx.io:8084/mqtt',
+      broker: 'ws://broker.emqx.io:8083/mqtt',
+      username: '',
+      password: '',
+      topic: 'jmjdoor'
+    },
+    {
+      name: 'SSL安全连接',
+      broker: 'wss://broker.emqx.io:8084/mqtt',
       username: '',
       password: '',
       topic: 'jmjdoor'
@@ -43,37 +78,37 @@ export function useMqttService() {
   const initMqtt = async () => {
     try {
       // 检查全局MQTT
-      if (window.mqttLib && typeof window.mqttLib.connect === 'function') {
-        mqtt = window.mqttLib
-        usingMqttLibrary.value = true
+      if (window.mqtt && typeof window.mqtt.connect === 'function') {
         console.log('使用全局MQTT对象')
-        return mqtt
+        return window.mqtt
       }
       
       // 尝试本地导入
       const mqttModule = await import('mqtt')
       console.log('本地导入MQTT:', mqttModule)
       
+      // 检查并返回正确的MQTT库对象
       if (typeof mqttModule.connect === 'function') {
-        mqtt = mqttModule
+        return mqttModule
       } else if (typeof mqttModule.default?.connect === 'function') {
-        mqtt = mqttModule.default
+        return mqttModule.default
       } else {
         throw new Error('找不到MQTT connect方法')
       }
-      
-      usingMqttLibrary.value = true
-      return mqtt
     } catch (error) {
       console.warn('MQTT导入失败:', error)
-      usingMqttLibrary.value = false
       ElMessage.error('MQTT库加载失败，请检查网络或刷新页面重试')
       return null
     }
   }
   
-  // 连接到MQTT
-  const connectMqtt = async (dataCallback) => {
+  // 连接MQTT
+  const connectMqttService = async (messageCallback) => {
+    // 保存消息处理回调
+    if (typeof messageCallback === 'function') {
+      messageProcessor = messageCallback;
+    }
+    
     if (connecting.value) {
       console.log('MQTT连接正在进行中，忽略重复请求')
       return
@@ -81,20 +116,20 @@ export function useMqttService() {
     
     if (mqttConnected.value) {
       console.log('MQTT已连接，先断开连接')
-      await disconnectMqtt()
-    }
-    
-    if (!mqtt) {
-      mqtt = await initMqtt()
-      if (!mqtt) {
-        console.error('MQTT初始化失败')
-        return
-      }
+      await disconnectMqttService()
     }
     
     connecting.value = true
     
     try {
+      // 初始化MQTT库
+      const mqtt = await initMqtt()
+      if (!mqtt) {
+        console.error('MQTT初始化失败')
+        connecting.value = false
+        return
+      }
+      
       const options = {
         clientId: 'mqtt_client_' + Math.random().toString(16).substr(2, 8),
         clean: true,
@@ -111,9 +146,11 @@ export function useMqttService() {
       connectionStatus.text = '连接中...'
       connectionStatus.type = 'warning'
       
-      client = mqtt.connect(connectionForm.broker, options)
+      // 重要：保存客户端连接实例
+      mqttClient.value = mqtt.connect(connectionForm.broker, options)
       
-      client.on('connect', () => {
+      // 设置连接事件监听
+      mqttClient.value.on('connect', () => {
         console.log('MQTT连接成功')
         mqttConnected.value = true
         connecting.value = false
@@ -122,7 +159,7 @@ export function useMqttService() {
         ElMessage.success('MQTT连接成功')
         
         // 订阅主题
-        client.subscribe(connectionForm.topic, (err) => {
+        mqttClient.value.subscribe(connectionForm.topic, (err) => {
           if (err) {
             console.error(`订阅主题失败: ${err.message}`)
             ElMessage.error(`订阅主题失败: ${err.message}`)
@@ -132,15 +169,17 @@ export function useMqttService() {
         })
       })
       
-      client.on('message', (topic, message) => {
+      // 设置消息接收事件监听
+      mqttClient.value.on('message', (topic, message) => {
         console.log('收到MQTT消息:', topic)
         // 调用数据处理回调
-        if (typeof dataCallback === 'function') {
-          dataCallback(message)
+        if (typeof messageProcessor === 'function') {
+          messageProcessor(message)
         }
       })
       
-      client.on('error', (err) => {
+      // 设置错误事件监听
+      mqttClient.value.on('error', (err) => {
         console.error('MQTT错误:', err)
         connecting.value = false
         connectionStatus.text = '连接错误'
@@ -148,12 +187,18 @@ export function useMqttService() {
         ElMessage.error(`MQTT错误: ${err.message}`)
       })
       
-      client.on('close', () => {
+      // 设置连接关闭事件监听
+      mqttClient.value.on('close', () => {
         console.log('MQTT连接关闭')
         mqttConnected.value = false
         connecting.value = false
         connectionStatus.text = '已断开'
         connectionStatus.type = 'danger'
+        
+        // 设置数据超时
+        if (timeoutHandler && typeof timeoutHandler === 'function') {
+          timeoutHandler();
+        }
       })
     } catch (error) {
       console.error('MQTT连接失败:', error)
@@ -165,25 +210,34 @@ export function useMqttService() {
   }
   
   // 断开MQTT连接
-  const disconnectMqtt = () => {
+  const disconnectMqttService = () => {
     return new Promise((resolve) => {
-      if (mqtt && client && client.connected) {
-        client.end(true, {}, () => {
+      if (mqttClient.value && mqttClient.value.connected) {
+        console.log('断开MQTT连接...')
+        
+        mqttClient.value.end(true, {}, () => {
           mqttConnected.value = false
           connectionStatus.text = '未连接'
           connectionStatus.type = 'danger'
           
           // 设置数据超时状态，使显示停止更新
+          if (timeoutHandler && typeof timeoutHandler === 'function') {
+            timeoutHandler();
+          }
           
           ElMessage.warning('MQTT连接已断开')
           resolve()
         })
       } else {
+        console.log('MQTT未连接或客户端不存在，无需断开')
         mqttConnected.value = false
         connectionStatus.text = '未连接'
         connectionStatus.type = 'danger'
         
         // 设置数据超时状态，使显示停止更新
+        if (timeoutHandler && typeof timeoutHandler === 'function') {
+          timeoutHandler();
+        }
         
         ElMessage.warning('MQTT连接已断开')
         resolve()
@@ -201,15 +255,17 @@ export function useMqttService() {
   }
   
   return {
+    mqttClient,
     mqttConnected,
-    usingMqttLibrary,
     connecting,
     connectionStatus,
     connectionForm,
     serverPresets,
-    connectMqtt,
-    disconnectMqtt,
+    connectMqttService,
+    disconnectMqttService,
     applyServerPreset,
-    initMqtt
+    initMqtt,
+    processHexData,
+    setDataTimeout
   }
 } 
