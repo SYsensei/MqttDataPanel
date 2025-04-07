@@ -431,7 +431,7 @@ body {
   /* 大屏幕下的布局 */
   .unified-door-container {
     display: grid;
-    grid-template-columns: 33% 34% 33%;
+    grid-template-columns: 25% 50% 25%;
     grid-gap: 0;
   }
   
@@ -478,7 +478,7 @@ body {
   justify-content: space-between;
 }
 
-/* 媒体查询 - 中等屏幕及以下设备 */
+/* 媒体查询 - 小于等于768px的设备统一处理 */
 @media (max-width: 768px) {
   /* 中小屏幕下的布局 */
   .unified-door-container {
@@ -512,125 +512,66 @@ body {
   }
   
   .status-panel-left-small {
-    width: 33%;
-    margin-right: 4px;
-  }
-  
-  .status-panel-right-small {
-    width: 67%;
-    margin-left: 0;
-    flex-grow: 1;
-  }
-}
-
-/* 媒体查询 - 小屏幕设备 */
-@media (max-width: 576px) {
-  .status-panel-left-small {
-    width: 27%;
+    width: 50%;
     margin-right: 3px;
     border-left-width: 4px;
     border-left-color: #4d77f9;
+    padding-left: 2px; /* 确保边框完整显示 */
   }
   
   .status-panel-right-small {
-    width: 73%;
-    flex-grow: 1;
+    width: 50%;
+    flex-grow: 0;
+    margin-left: 0;
     border-right-width: 4px;
     border-right-color: #4d77f9;
-  }
-}
-
-/* 小屏幕横屏模式特殊处理 */
-@media (max-width: 576px) and (orientation: landscape) {
-  .unified-door-container {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: space-between;
+    padding-right: 2px; /* 确保边框完整显示 */
+    margin: 0;
+    overflow: hidden;
   }
   
-  .door-panel-center {
-    width: 50%;
-    order: 1;
-  }
-  
-  .status-panels-wrapper {
-    width: 50%;
-    order: 2;
-    flex-direction: column;
-  }
-  
-  .status-panel-left-small, 
-  .status-panel-right-small {
-    width: 100%;
-    margin: 0 0 5px 0;
-  }
-  
-  .status-panel-left-small {
-    height: auto;
-    min-height: 120px;
-    margin-bottom: 5px;
-    border-left: none;
-    border-top: 3px solid #4d77f9;
-  }
-  
-  .status-panel-right-small {
-    height: auto;
-    flex-grow: 1;
-    border-right: none;
-    border-bottom: 3px solid #4d77f9;
-  }
-}
-
-/* 媒体查询 - 特小屏幕设备 */
-@media (max-width: 480px) {
-  .status-panel-left-small {
-    width: 24%;
-    margin-right: 2px;
-  }
-  
-  .status-panel-right-small {
-    width: 76%;
-  }
-  
-  /* 调整天气和时间显示，避免与Logo重叠 */
-  .app-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  
-  .app-header header-component {
-    margin-bottom: 10px;
-    width: 100%;
-  }
-  
-  .app-header .admin-mode-switch {
-    align-self: flex-end;
-  }
-  
-  /* 让天气和时间显示在Logo下方 */
-  .header-weather-time {
-    position: relative !important;
-    right: auto !important;
-    top: auto !important;
-    margin-top: 5px;
-    align-self: flex-end;
-  }
-  
-  .section-title {
-    font-size: 12px;
-  }
-  
-  .status-name {
-    font-size: 12px;
-  }
-  
-  .status-detail {
-    font-size: 10px;
-  }
-  
-  .main-status-panel {
-    padding: 5px;
+  /* 横屏模式特殊处理 */
+  @media (orientation: landscape) {
+    .unified-door-container {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      justify-content: space-between;
+    }
+    
+    .door-panel-center {
+      width: 50%;
+      order: 1;
+    }
+    
+    .status-panels-wrapper {
+      width: 50%;
+      order: 2;
+      flex-direction: column;
+    }
+    
+    .status-panel-left-small, 
+    .status-panel-right-small {
+      width: 100%;
+      margin: 0 0 5px 0;
+    }
+    
+    .status-panel-left-small {
+      height: auto;
+      min-height: 120px;
+      margin-bottom: 5px;
+      border-left: none;
+      border-top: 3px solid #4d77f9;
+      padding-top: 2px; /* 确保顶部边框完整显示 */
+    }
+    
+    .status-panel-right-small {
+      height: auto;
+      flex-grow: 1;
+      border-right: none;
+      border-bottom: 3px solid #4d77f9;
+      padding-bottom: 2px; /* 确保底部边框完整显示 */
+    }
   }
 }
 

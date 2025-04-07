@@ -181,9 +181,6 @@
     <!-- 右侧面板显示门控器数据 -->
     <div v-if="isRightPanel" class="side-panel-section right-panel">
       <div class="status-grid-vertical">
-        <!-- 添加标题 -->
-        <div class="panel-title">门控器运行参数</div>
-        
         <!-- 数据显示区域 -->
         <div class="data-display-section">
           <div class="data-item">
@@ -244,39 +241,6 @@
                 <div class="gauge-fill" :style="{ width: `${parseFloat(doorData.doorPosition) / 900 * 100}%` }"></div>
               </div>
               <div class="gauge-value">{{ parseFloat(doorData.doorPosition).toFixed(1) }}mm</div>
-            </div>
-          </div>
-        </div>
-        
-        <!-- 添加运行状态统计部分 -->
-        <div class="operation-stats">
-          <div class="stats-title">运行统计</div>
-          <div class="stats-grid">
-            <div class="stats-item">
-              <div class="stats-label">累计运行次数</div>
-              <div class="stats-value">{{ doorData.totalOperations || 0 }}次</div>
-            </div>
-            <div class="stats-item">
-              <div class="stats-label">平均开门时间</div>
-              <div class="stats-value">{{ (doorData.doorOpenDuration || 0).toFixed(1) }}秒</div>
-            </div>
-            <div class="stats-item">
-              <div class="stats-label">平均关门时间</div>
-              <div class="stats-value">{{ (doorData.doorCloseDuration || 0).toFixed(1) }}秒</div>
-            </div>
-            <div class="stats-item">
-              <div class="stats-label">当前电梯楼层</div>
-              <div class="stats-value">{{ doorData.floor || 1 }}层</div>
-            </div>
-            <div class="stats-item">
-              <div class="stats-label">健康状态</div>
-              <div class="stats-value" :class="{'status-normal': doorData.faultCode === 0, 'status-fault': doorData.faultCode > 0}">
-                {{ doorData.faultCode > 0 ? '故障' : '正常' }}
-              </div>
-            </div>
-            <div class="stats-item">
-              <div class="stats-label">最近维保</div>
-              <div class="stats-value">2025-03-15</div>
             </div>
           </div>
         </div>
@@ -375,10 +339,7 @@ const displayDoorCloseDuration = computed(() => {
 
 /* 针对右侧面板的特殊样式 */
 .side-panel-section.right-panel {
-  padding-right: 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  padding-right: 20px; /* 增加右侧内边距，确保圆弧和竖线可见 */
 }
 
 /* 标题样式 */
@@ -428,40 +389,63 @@ const displayDoorCloseDuration = computed(() => {
     width: 100%;
   }
   
-  .side-panel-section.left-panel, 
-  .side-panel-section.right-panel {
-    padding: 2px;
+  /* 左侧面板样式 */
+  .side-panel-section.left-panel,
+  .left-panel {
+    padding: 0;
     width: 100%;
+    box-sizing: border-box;
   }
   
-  /* 右侧面板水平数据显示 */
-  .side-panel-section.right-panel .status-grid-vertical,
-  .right-panel .status-grid-vertical {
-    flex-direction: row;
-    flex-wrap: wrap;
+  .left-panel .status-grid-vertical {
+    display: flex;
+    flex-direction: column;
     justify-content: space-between;
-    gap: 6px;
-    min-height: auto;
     width: 100%;
+    height: 100%;
+    padding: 4px;
   }
   
-  .side-panel-section.right-panel .data-item,
-  .right-panel .data-item {
-    width: calc(50% - 3px);
-    height: 40px;
-    margin-bottom: 0;
-    padding: 3px 4px;
+  .left-panel .status-item-compact {
+    margin-bottom: 6px;
+    height: 36px;
+    padding: 5px 8px;
+  }
+  
+  .left-panel .status-text-compact {
+    font-size: 12px;
+  }
+  
+  /* 右侧面板样式 */
+  .side-panel-section.right-panel,
+  .right-panel {
+    padding: 0;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  
+  .right-panel .status-grid-vertical {
+    width: 100%;
+    padding: 0;
   }
   
   .side-panel-section.right-panel .data-display-section,
   .right-panel .data-display-section {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    min-height: auto;
-    gap: 6px;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: repeat(1, 1fr);
+    gap: 4px;
     width: 100%;
+    min-height: auto;
+    padding: 0;
+  }
+  
+  .side-panel-section.right-panel .data-item,
+  .right-panel .data-item {
+    width: 100%;
+    height: 40px;
+    margin: 0;
+    padding: 3px 4px;
+    box-sizing: border-box;
   }
   
   /* 确保侧边面板中的垂直网格在小屏幕上也能正常显示 */
@@ -481,8 +465,38 @@ const displayDoorCloseDuration = computed(() => {
   }
 }
 
-/* 媒体查询 - 超小屏幕设备 */
-@media (max-width: 480px) {
+/* 小屏幕横屏模式特殊处理 */
+@media (max-width: 576px) and (orientation: landscape) {
+  .side-panel-section.right-panel .data-display-section,
+  .right-panel .data-display-section {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    width: 100%;
+    min-height: 0;
+    padding: 0;
+  }
+  
+  .side-panel-section.right-panel .data-item,
+  .right-panel .data-item {
+    width: 100%;
+    margin-bottom: 0;
+    padding: 3px 4px;
+  }
+  
+  /* 调整数据项的字体大小 */
+  .data-name {
+    font-size: 10px;
+    margin-bottom: 2px;
+  }
+  
+  .gauge-value {
+    font-size: 11px;
+  }
+}
+
+/* 媒体查询 - 768px以下设备统一处理 */
+@media (max-width: 768px) {
   .door-status-section {
     padding: 8px;
   }
@@ -499,20 +513,158 @@ const displayDoorCloseDuration = computed(() => {
   .status-detail {
     font-size: 10px;
   }
-}
-
-/* 极小屏幕设备 */
-@media (max-width: 360px) {
-  .door-status-section {
-    padding: 5px;
-  }
-  
-  .section-title {
-    font-size: 12px;
-  }
   
   .status-grid {
     gap: 5px;
+  }
+  
+  /* 左侧面板样式 */
+  .side-panel-section.left-panel,
+  .left-panel {
+    padding: 0 3px 0 5px; /* 增加左右内边距 */
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* 垂直居中整体内容 */
+  }
+  
+  .left-panel .status-grid-vertical {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* 均匀分布子元素 */
+    width: 100%;
+    height: 100%;
+    padding: 10px 4px; /* 顶部和底部增加间距 */
+    gap: 0; /* 移除额外间距，由justify-content控制 */
+  }
+  
+  .left-panel .status-item-compact {
+    margin: 0; /* 移除外边距 */
+    height: 28px; /* 减小高度 */
+    padding: 4px 6px;
+    flex-shrink: 0; /* 防止压缩 */
+  }
+  
+  .left-panel .status-text-compact {
+    font-size: 12px;
+  }
+  
+  /* 右侧面板样式 */
+  .side-panel-section.right-panel,
+  .right-panel {
+    padding: 0 8px 0 3px;
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  
+  .right-panel .status-grid-vertical {
+    width: 100%;
+    padding: 10px 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 0;
+  }
+  
+  .side-panel-section.right-panel .data-display-section,
+  .right-panel .data-display-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px; /* 增加项目间距 */
+    width: 100%;
+    min-height: 0;
+    padding: 0;
+    justify-content: space-between;
+    height: 100%;
+  }
+  
+  .side-panel-section.right-panel .data-item,
+  .right-panel .data-item {
+    width: 100%;
+    height: 50px; /* 增加高度至50px */
+    margin: 0;
+    padding: 8px 10px; /* 增加内边距 */
+    box-sizing: border-box;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* 均匀分布名称和进度条 */
+  }
+  
+  /* 调整数据内部元素样式 */
+  .right-panel .data-name {
+    font-size: 14px; /* 增大字体 */
+    margin-bottom: 4px; /* 优化底部间距 */
+    font-weight: bold;
+    color: #fff; /* 提高对比度 */
+    line-height: 1.2; /* 调整行高 */
+  }
+  
+  .right-panel .data-gauge {
+    height: 20px; /* 增加高度 */
+    margin-top: 0; /* 移除顶部间距 */
+    display: flex;
+    align-items: center;
+  }
+  
+  .right-panel .gauge-bar {
+    height: 8px; /* 增加进度条高度 */
+    background-color: rgba(35, 56, 118, 0.5); /* 略微透明背景 */
+    border-radius: 4px; /* 增加圆角 */
+    margin-right: 8px; /* 增加与数值的间距 */
+  }
+  
+  .right-panel .gauge-fill {
+    height: 100%;
+    background-color: #22c55e; /* 恢复为原来的绿色 */
+    border-radius: 4px;
+    box-shadow: 0 0 5px rgba(34, 197, 94, 0.5); /* 调整阴影颜色匹配绿色 */
+  }
+  
+  .right-panel .gauge-value {
+    min-width: 65px; /* 增加最小宽度 */
+    font-size: 14px; /* 增大字体 */
+    font-weight: bold;
+    color: #fff; /* 提高对比度 */
+    text-shadow: 0 0 4px rgba(0, 0, 0, 0.5); /* 添加文字阴影增加可读性 */
+    margin: 0; /* 重置边距 */
+  }
+  
+  /* 横屏模式特殊处理 */
+  @media (orientation: landscape) {
+    .side-panel-section.right-panel .data-display-section,
+    .right-panel .data-display-section {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      width: 100%;
+      min-height: 0;
+      padding: 0;
+      height: auto; /* 移除固定高度 */
+      justify-content: flex-start; /* 重置justify-content */
+    }
+    
+    .side-panel-section.right-panel .data-item,
+    .right-panel .data-item {
+      width: 100%;
+      margin-bottom: 0;
+      padding: 3px 4px;
+    }
+    
+    /* 调整数据项的字体大小 */
+    .data-name {
+      font-size: 10px;
+      margin-bottom: 2px;
+    }
+    
+    .gauge-value {
+      font-size: 11px;
+    }
   }
 }
 
@@ -682,6 +834,14 @@ const displayDoorCloseDuration = computed(() => {
   min-height: 310px;
 }
 
+/* 768px以下移除最小高度限制 */
+@media (max-width: 768px) {
+  .data-display-section {
+    min-height: 0;
+    height: auto;
+  }
+}
+
 .data-item {
   background-color: #0a1a40;
   border-radius: 5px;
@@ -838,106 +998,5 @@ const displayDoorCloseDuration = computed(() => {
   0% { opacity: 0.6; }
   50% { opacity: 1; }
   100% { opacity: 0.6; }
-}
-
-/* 运行统计部分 */
-.operation-stats {
-  margin-top: 10px;
-  width: 100%;
-  background-color: #0a1a40;
-  border-radius: 6px;
-  padding: 8px;
-  border: 1px solid #1e3a8a;
-}
-
-.stats-title {
-  font-size: 14px;
-  color: #4d77f9;
-  margin-bottom: 8px;
-  font-weight: bold;
-  text-align: center;
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-}
-
-.stats-item {
-  padding: 5px;
-  background-color: #132859;
-  border-radius: 4px;
-  border: 1px solid #1e3a8a;
-}
-
-.stats-label {
-  font-size: 12px;
-  color: #a0aee0;
-  margin-bottom: 2px;
-}
-
-.stats-value {
-  font-size: 14px;
-  color: #eef2ff;
-  font-weight: bold;
-}
-
-.status-normal {
-  color: #22c55e;
-}
-
-.status-fault {
-  color: #e53e3e;
-}
-
-/* 在小屏幕上调整右侧面板布局 */
-@media (max-width: 576px) {
-  .side-panel-section.right-panel,
-  .right-panel {
-    padding: 5px;
-  }
-  
-  .side-panel-section.right-panel .status-grid-vertical,
-  .right-panel .status-grid-vertical {
-    min-height: auto;
-    gap: 8px;
-  }
-  
-  .panel-title {
-    font-size: 14px;
-    margin-bottom: 5px;
-  }
-  
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  .stats-label {
-    font-size: 10px;
-  }
-  
-  .stats-value {
-    font-size: 12px;
-  }
-}
-
-/* 小屏幕横屏模式优化 */
-@media (max-width: 576px) and (orientation: landscape) {
-  .side-panel-section.right-panel .data-display-section,
-  .right-panel .data-display-section {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 5px;
-  }
-  
-  .side-panel-section.right-panel .data-item,
-  .right-panel .data-item {
-    width: 100%;
-  }
-  
-  .stats-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
 }
 </style> 

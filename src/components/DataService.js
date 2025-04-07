@@ -1,106 +1,106 @@
 import { ref, reactive, computed } from 'vue'
 
-export function useDataService() {
-  // 门开关进度模拟
-  const doorData = reactive({
-    messageType: 0,
-    messageBodyLength: 0,
-    doorClosedInPlace: 0,    // 关门到位
-    doorOpenedInPlace: 0,    // 开门到位
-    motorOverheat: 0,        // 电机过热
-    stall: 0,                // 堵转
-    forceClose: 0,           // 强制关门
-    closing: 0,              // 关门中
-    opening: 0,              // 开门中
-    DI0: 0,                  // 普通DI0输入
-    DI1: 0,                  // 普通DI1输入
-    DI2: 0,                  // 普通DI2输入
-    DI3: 0,                  // 普通DI3输入
-    DI0_: 0,                 // 改为：门机同步带松动
-    DI1_: 0,                 // 改为：层门开关闪断
-    DI2_: 0,                 // 改为：门刀开关故障
-    DI3_: 0,                 // 改为：烟囱效应产生
-    DO0: 0,                  // 改为：开门到位端子输出状态
-    DO1: 0,                  // 改为：关门到位端子输出状态
-    DO2: 0,                  // 改为：电机过热端子输出状态
-    busVoltage: 0,           // 母线电压
-    IPMTemperature: 0,       // IPM温度
-    faultCode: 0,            // 故障码
-    givenSpeed: 0,           // 给定速度
-    outputCurrent: 0,        // 输出电流
-    doorPosition: 0,         // 门位置
-    feedbackSpeed: 0,        // 反馈速度
-    resist: 0,               // 电阻值
-    turns: 0,                // 圈数
-    floor: 0,                // 楼层
-    CRC16: 0,                // CRC校验
-    
-    // 用于开关门时间计算
-    doorOpenStartTime: null, // 开门起始时间
-    doorCloseStartTime: null, // 关门起始时间
-    doorOpenDuration: 0,     // 开门用时(秒)
-    doorCloseDuration: 0,    // 关门用时(秒)
-    // 修改为实时计时器
-    doorOpenTimer: {
-      isRunning: false,      // 是否正在计时
-      startTime: null,       // 开始计时的时间戳
-      seconds: 0,            // 已计时的秒数
-      formattedTime: '00:00.0' // 格式化后的时间 (mm:ss.d)
-    },
-    doorCloseTimer: {
-      isRunning: false,      // 是否正在计时
-      startTime: null,       // 开始计时的时间戳
-      seconds: 0,            // 已计时的秒数
-      formattedTime: '00:00.0' // 格式化后的时间 (mm:ss.d)
-    },
-    
-    // 门动画控制
-    doorOpenProgress: 0,    // 开门进度(0-1)
-    doorCloseProgress: 0,   // 关门进度(0-1)
-    
-    // 累计运行次数
-    totalOperations: Number(localStorage.getItem('totalOperations')) || 88500,
-    
-    // 新增 currentSpeed 属性
-    currentSpeed: 0,
-    
-    // 新增判断阻门标志
-    stallByObstacle: 0,
-    
-    // 添加连续信号状态跟踪
-    continuousOpenSignal: false,
-    continuousCloseSignal: false,
-    // 前几次的位置数据，用于平滑动画
-    previousPositions: [],
-    previousTimes: [],
-    openingStarted: false,
-    closingStarted: false,
-    
-    // 到位灯状态记录
-    lastOpenInPlaceLightOn: false,
-    lastCloseInPlaceLightOn: false,
-    doorAngle: 0,  // 门角度
-    errorCode: 0, // 错误代码
-    DO3: false, // DO3 输出
-    DI0: false, // DI0 输入 开门信号
-    DI1: false, // DI1 输入 关门信号
-    DI2: false, // DI2 输入
-    DI3: false, // DI3 输入
-    direction: 0, // 方向：0-停止，1-开门，2-关门
-    openTimerCount: 0, // 开门计时器计数
-    closeTimerCount: 0, // 关门计时器计数
-    hex: "", // 原始数据
-    isOpening: false, // 是否正在开门
-    isClosing: false, // 是否正在关门
-    isOpenAtPlace: false, // 是否开门到位
-    isCloseAtPlace: false, // 是否关门到位
-    signal: {open: 0, close: 0},
-    doorOpenDuration: 0, // 平均开门时间
-    doorCloseDuration: 0, // 平均关门时间
-    faultCode: 0, // 故障代码
-    floor: 1, // 当前楼层
-  })
+// 导出门数据对象供其他组件使用
+export const doorData = reactive({
+  messageType: 0,
+  messageBodyLength: 0,
+  doorClosedInPlace: 0,    // 关门到位
+  doorOpenedInPlace: 0,    // 开门到位
+  motorOverheat: 0,        // 电机过热
+  stall: 0,                // 堵转
+  forceClose: 0,           // 强制关门
+  closing: 0,              // 关门中
+  opening: 0,              // 开门中
+  DI0: 0,                  // 普通DI0输入
+  DI1: 0,                  // 普通DI1输入
+  DI2: 0,                  // 普通DI2输入
+  DI3: 0,                  // 普通DI3输入
+  DI0_: 0,                 // 改为：门机同步带松动
+  DI1_: 0,                 // 改为：层门开关闪断
+  DI2_: 0,                 // 改为：门刀开关故障
+  DI3_: 0,                 // 改为：烟囱效应产生
+  DO0: 0,                  // 改为：开门到位端子输出状态
+  DO1: 0,                  // 改为：关门到位端子输出状态
+  DO2: 0,                  // 改为：电机过热端子输出状态
+  busVoltage: 0,           // 母线电压
+  IPMTemperature: 0,       // IPM温度
+  faultCode: 0,            // 故障码
+  givenSpeed: 0,           // 给定速度
+  outputCurrent: 0,        // 输出电流
+  doorPosition: 0,         // 门位置
+  feedbackSpeed: 0,        // 反馈速度
+  resist: 0,               // 电阻值
+  turns: 0,                // 圈数
+  floor: 0,                // 楼层
+  CRC16: 0,                // CRC校验
   
+  // 用于开关门时间计算
+  doorOpenStartTime: null, // 开门起始时间
+  doorCloseStartTime: null, // 关门起始时间
+  doorOpenDuration: 0,     // 开门用时(秒)
+  doorCloseDuration: 0,    // 关门用时(秒)
+  // 修改为实时计时器
+  doorOpenTimer: {
+    isRunning: false,      // 是否正在计时
+    startTime: null,       // 开始计时的时间戳
+    seconds: 0,            // 已计时的秒数
+    formattedTime: '00:00.0' // 格式化后的时间 (mm:ss.d)
+  },
+  doorCloseTimer: {
+    isRunning: false,      // 是否正在计时
+    startTime: null,       // 开始计时的时间戳
+    seconds: 0,            // 已计时的秒数
+    formattedTime: '00:00.0' // 格式化后的时间 (mm:ss.d)
+  },
+  
+  // 门动画控制
+  doorOpenProgress: 0,    // 开门进度(0-1)
+  doorCloseProgress: 0,   // 关门进度(0-1)
+  
+  // 累计运行次数
+  totalOperations: Number(localStorage.getItem('totalOperations')) || 88500,
+  
+  // 新增 currentSpeed 属性
+  currentSpeed: 0,
+  
+  // 新增判断阻门标志
+  stallByObstacle: 0,
+  
+  // 添加连续信号状态跟踪
+  continuousOpenSignal: false,
+  continuousCloseSignal: false,
+  // 前几次的位置数据，用于平滑动画
+  previousPositions: [],
+  previousTimes: [],
+  openingStarted: false,
+  closingStarted: false,
+  
+  // 到位灯状态记录
+  lastOpenInPlaceLightOn: false,
+  lastCloseInPlaceLightOn: false,
+  doorAngle: 0,  // 门角度
+  errorCode: 0, // 错误代码
+  DO3: false, // DO3 输出
+  DI0: false, // DI0 输入 开门信号
+  DI1: false, // DI1 输入 关门信号
+  DI2: false, // DI2 输入
+  DI3: false, // DI3 输入
+  direction: 0, // 方向：0-停止，1-开门，2-关门
+  openTimerCount: 0, // 开门计时器计数
+  closeTimerCount: 0, // 关门计时器计数
+  hex: "", // 原始数据
+  isOpening: false, // 是否正在开门
+  isClosing: false, // 是否正在关门
+  isOpenAtPlace: false, // 是否开门到位
+  isCloseAtPlace: false, // 是否关门到位
+  signal: {open: 0, close: 0},
+  doorOpenDuration: 0, // 平均开门时间
+  doorCloseDuration: 0, // 平均关门时间
+  faultCode: 0, // 故障代码
+  floor: 1, // 当前楼层
+})
+
+export function useDataService() {
   // 原始十六进制数据
   const lastMessageHex = ref([])
   const lastUpdateTime = ref(null)
@@ -564,7 +564,7 @@ export function initializeData() {
   }
 }
 
-// 在组件挂载时调用初始化函数
+// 在模块级别调用初始化函数
 initializeData();
 
 // 更新门开关的计时器计数
