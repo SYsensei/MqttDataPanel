@@ -6,77 +6,147 @@
         <h2 class="section-title">门机运行状态</h2>
         
         <div class="status-grid">
-          <!-- 门状态 -->
-          <div class="status-item">
-            <div class="led-indicator green" :class="{ active: !isDataTimeout && validTopicReceived }"></div>
-            <div class="status-text">
-              <div class="status-name">正常</div>
+          <!-- 大屏幕下的显示顺序 -->
+          <template v-if="!isSmallScreen">
+            <!-- 门状态 -->
+            <div class="status-item">
+              <div class="led-indicator green" :class="{ 'active': !isDataTimeout && validTopicReceived }"></div>
+              <div class="status-text">
+                <div class="status-name">正常</div>
+              </div>
             </div>
-          </div>
+            
+            <div class="status-item">
+              <div class="led-indicator green" :class="{ 'active': doorData.opening && !doorData.DO0 && !isDataTimeout }"></div>
+              <div class="status-text">
+                <div class="status-name">开门中...</div>
+                <div class="status-detail fixed-height" v-if="doorData.opening && !doorData.DO0 && !isDataTimeout">正在开门，请注意安全</div>
+              </div>
+            </div>
+            
+            <div class="status-item">
+              <div class="led-indicator green" :class="{ 'active': doorData.DO0 && !isDataTimeout }"></div>
+              <div class="status-text">
+                <div class="status-name">开门到位</div>
+                <div class="status-detail fixed-height" v-if="doorData.doorOpenedInPlace && !isDataTimeout">开门已完成，用时{{ displayDoorOpenDuration }}s</div>
+                <div class="status-detail fixed-height" v-else-if="doorData.doorOpenTimer.isRunning && !isDataTimeout">正在开门...</div>
+              </div>
+            </div>
+            
+            <div class="status-item">
+              <div class="led-indicator red" :class="{ 'active': doorData.faultCode > 0 && !isDataTimeout }"></div>
+              <div class="status-text">
+                <div class="status-name">故障</div>
+                <div class="status-detail fixed-height" v-if="doorData.faultCode > 0 && !isDataTimeout">Err{{ doorData.faultCode }}</div>
+              </div>
+            </div>
+            
+            <div class="status-item">
+              <div class="led-indicator green" :class="{ 'active': doorData.closing && !doorData.DO1 && !isDataTimeout }"></div>
+              <div class="status-text">
+                <div class="status-name">关门中...</div>
+                <div class="status-detail fixed-height" v-if="doorData.closing && !doorData.DO1 && !isDataTimeout">正在关门，请注意安全</div>
+              </div>
+            </div>
+            
+            <div class="status-item">
+              <div class="led-indicator green" :class="{ 'active': doorData.DO1 && !isDataTimeout }"></div>
+              <div class="status-text">
+                <div class="status-name">关门到位</div>
+                <div class="status-detail fixed-height" v-if="doorData.doorClosedInPlace && !isDataTimeout">关门已完成，用时{{ displayDoorCloseDuration }}s</div>
+                <div class="status-detail fixed-height" v-else-if="doorData.doorCloseTimer.isRunning && !isDataTimeout">正在关门...</div>
+              </div>
+            </div>
+            
+            <div class="status-item">
+              <div class="led-indicator green" :class="{ 'active': doorData.doorPosition < 20 && !isDataTimeout }"></div>
+              <div class="status-text">
+                <div class="status-name">门锁回路</div>
+                <div class="status-detail fixed-height"></div>
+              </div>
+            </div>
+            
+            <div class="status-item">
+              <div class="status-text">
+                <div class="status-name">累计运行次数</div>
+                <div class="status-detail fixed-height">{{ doorData.totalOperations }}次</div>
+              </div>
+            </div>
+            
+            <div class="status-item">
+              <div class="status-text">
+                <div class="status-name">最近维保日期</div>
+                <div class="status-detail fixed-height">2025年3月15日</div>
+              </div>
+            </div>
+          </template>
           
-          <div class="status-item">
-            <div class="led-indicator green" :class="{ active: doorData.opening && !doorData.DO0 && !isDataTimeout }"></div>
-            <div class="status-text">
-              <div class="status-name">开门中...</div>
-              <div class="status-detail fixed-height" v-if="doorData.opening && !doorData.DO0 && !isDataTimeout">正在开门，请注意安全</div>
+          <!-- 小屏幕下的显示顺序 -->
+          <template v-else>
+            <div class="status-item">
+              <div class="led-indicator green" :class="{ 'active': !isDataTimeout && validTopicReceived }"></div>
+              <div class="status-text">
+                <div class="status-name">正常</div>
+              </div>
             </div>
-          </div>
-          
-          <div class="status-item">
-            <div class="led-indicator green" :class="{ active: doorData.DO0 && !isDataTimeout }"></div>
-            <div class="status-text">
-              <div class="status-name">开门到位</div>
-              <div class="status-detail fixed-height" v-if="doorData.doorOpenedInPlace && !isDataTimeout">开门已完成，用时{{ displayDoorOpenDuration }}s</div>
-              <div class="status-detail fixed-height" v-else-if="doorData.doorOpenTimer.isRunning && !isDataTimeout">正在开门...</div>
+            
+            <div class="status-item">
+              <div class="led-indicator red" :class="{ 'active': doorData.faultCode > 0 && !isDataTimeout }"></div>
+              <div class="status-text">
+                <div class="status-name">故障</div>
+                <div class="status-detail fixed-height" v-if="doorData.faultCode > 0 && !isDataTimeout">Err{{ doorData.faultCode }}</div>
+              </div>
             </div>
-          </div>
-          
-          <div class="status-item">
-            <div class="led-indicator red" :class="{ active: doorData.faultCode > 0 && !isDataTimeout }"></div>
-            <div class="status-text">
-              <div class="status-name">故障</div>
-              <div class="status-detail fixed-height" v-if="doorData.faultCode > 0 && !isDataTimeout">Err{{ doorData.faultCode }}</div>
+            
+            <div class="status-item">
+              <div class="led-indicator green" :class="{ 'active': doorData.opening && !doorData.DO0 && !isDataTimeout }"></div>
+              <div class="status-text">
+                <div class="status-name">开门中...</div>
+                <div class="status-detail fixed-height" v-if="doorData.opening && !doorData.DO0 && !isDataTimeout">正在开门，请注意安全</div>
+              </div>
             </div>
-          </div>
-          
-          <div class="status-item">
-            <div class="led-indicator green" :class="{ active: doorData.closing && !doorData.DO1 && !isDataTimeout }"></div>
-            <div class="status-text">
-              <div class="status-name">关门中...</div>
-              <div class="status-detail fixed-height" v-if="doorData.closing && !doorData.DO1 && !isDataTimeout">正在关门，请注意安全</div>
+            
+            <div class="status-item">
+              <div class="led-indicator green" :class="{ 'active': doorData.DO0 && !isDataTimeout }"></div>
+              <div class="status-text">
+                <div class="status-name">开门到位</div>
+                <div class="status-detail fixed-height" v-if="doorData.doorOpenedInPlace && !isDataTimeout">开门已完成，用时{{ displayDoorOpenDuration }}s</div>
+                <div class="status-detail fixed-height" v-else-if="doorData.doorOpenTimer.isRunning && !isDataTimeout">正在开门...</div>
+              </div>
             </div>
-          </div>
-          
-          <div class="status-item">
-            <div class="led-indicator green" :class="{ active: doorData.DO1 && !isDataTimeout }"></div>
-            <div class="status-text">
-              <div class="status-name">关门到位</div>
-              <div class="status-detail fixed-height" v-if="doorData.doorClosedInPlace && !isDataTimeout">关门已完成，用时{{ displayDoorCloseDuration }}s</div>
-              <div class="status-detail fixed-height" v-else-if="doorData.doorCloseTimer.isRunning && !isDataTimeout">正在关门...</div>
+            
+            <div class="status-item">
+              <div class="led-indicator green" :class="{ 'active': doorData.closing && !doorData.DO1 && !isDataTimeout }"></div>
+              <div class="status-text">
+                <div class="status-name">关门中...</div>
+                <div class="status-detail fixed-height" v-if="doorData.closing && !doorData.DO1 && !isDataTimeout">正在关门，请注意安全</div>
+              </div>
             </div>
-          </div>
-          
-          <div class="status-item">
-            <div class="led-indicator green" :class="{ active: doorData.doorPosition < 20 && !isDataTimeout }"></div>
-            <div class="status-text">
-              <div class="status-name">门锁回路</div>
-              <div class="status-detail fixed-height"></div>
+            
+            <div class="status-item">
+              <div class="led-indicator green" :class="{ 'active': doorData.DO1 && !isDataTimeout }"></div>
+              <div class="status-text">
+                <div class="status-name">关门到位</div>
+                <div class="status-detail fixed-height" v-if="doorData.doorClosedInPlace && !isDataTimeout">关门已完成，用时{{ displayDoorCloseDuration }}s</div>
+                <div class="status-detail fixed-height" v-else-if="doorData.doorCloseTimer.isRunning && !isDataTimeout">正在关门...</div>
+              </div>
             </div>
-          </div>
-          
-          <div class="status-item">
-            <div class="status-text">
-              <div class="status-name">累计运行次数</div>
-              <div class="status-detail fixed-height">{{ doorData.totalOperations }}次</div>
+            
+            <div class="status-item">
+              <div class="led-indicator green" :class="{ 'active': doorData.doorPosition < 20 && !isDataTimeout }"></div>
+              <div class="status-text">
+                <div class="status-name">门锁回路</div>
+                <div class="status-detail fixed-height"></div>
+              </div>
             </div>
-          </div>
-          
-          <div class="status-item">
-            <div class="status-text">
-              <div class="status-name">最近维保日期</div>
-              <div class="status-detail fixed-height">2025年3月15日</div>
+            
+            <div class="status-item">
+              <div class="status-text">
+                <div class="status-name">累计运行次数</div>
+                <div class="status-detail fixed-height">{{ doorData.totalOperations }}次</div>
+              </div>
             </div>
-          </div>
+          </template>
         </div>
       </div>
       
@@ -86,15 +156,7 @@
         
         <div class="status-grid">
           <div class="status-item">
-            <div class="led-indicator yellow" :class="{ active: doorData.DI0_ && !isDataTimeout }"></div>
-            <div class="status-text">
-              <div class="status-name">门机同步带松动</div>
-              <div class="status-detail fixed-height">调节螺丝需拧紧 {{ doorData.turns.toFixed(1) }} 圈</div>
-            </div>
-          </div>
-          
-          <div class="status-item">
-            <div class="led-indicator yellow" :class="{ active: doorData.DI1_ && !isDataTimeout }"></div>
+            <div class="led-indicator yellow" :class="{ 'active': doorData.DI1_ && !isDataTimeout }"></div>
             <div class="status-text">
               <div class="status-name">层门开关闪断</div>
               <div class="status-detail fixed-height">发生楼层：{{ doorData.floor }} 层</div>
@@ -102,15 +164,39 @@
           </div>
           
           <div class="status-item">
-            <div class="led-indicator red" :class="{ active: doorData.DI2_ && !isDataTimeout }"></div>
+            <div class="led-indicator red" :class="{ 'active': doorData.stallByObstacle && !isDataTimeout }"></div>
             <div class="status-text">
-              <div class="status-name">门刀开关故障</div>
-              <div class="status-detail fixed-height" v-if="doorData.DI2_ && !isDataTimeout">请检查门刀联动机构</div>
+              <div class="status-name">地坎垃圾阻门</div>
+              <div class="status-detail fixed-height">{{ doorData.floor }} 层，阻力值 {{ doorData.resist }} N</div>
             </div>
           </div>
           
           <div class="status-item">
-            <div class="led-indicator yellow" :class="{ active: doorData.DI3_ && !isDataTimeout }"></div>
+            <div class="led-indicator yellow" :class="{ 'active': doorData.DI0_ && !isDataTimeout }"></div>
+            <div class="status-text">
+              <div class="status-name">门机同步带松</div>
+              <div class="status-detail fixed-height">调节螺丝需拧紧 {{ doorData.turns.toFixed(1) }} 圈</div>
+            </div>
+          </div>
+          
+          <div class="status-item">
+            <div class="led-indicator red" :class="{ 'active': doorData.forceClose && !isDataTimeout }"></div>
+            <div class="status-text">
+              <div class="status-name">强迫关门失效</div>
+              <div class="status-detail fixed-height">发生楼层：{{ doorData.floor }} 层</div>
+            </div>
+          </div>
+          
+          <div class="status-item">
+            <div class="led-indicator red" :class="{ 'active': doorData.DI2_ && !isDataTimeout }"></div>
+            <div class="status-text">
+              <div class="status-name">层门锁中心超差</div>
+              <div class="status-detail fixed-height">发生楼层：{{ doorData.floor }} 层</div>
+            </div>
+          </div>
+          
+          <div class="status-item">
+            <div class="led-indicator yellow" :class="{ 'active': doorData.DI3_ && !isDataTimeout }"></div>
             <div class="status-text">
               <div class="status-name">烟囱效应产生</div>
               <div class="status-detail fixed-height">发生楼层：{{ doorData.floor }} 层</div>
@@ -118,18 +204,50 @@
           </div>
           
           <div class="status-item">
-            <div class="led-indicator red" :class="{ active: doorData.stallByObstacle && !isDataTimeout }"></div>
+            <div class="led-indicator red" :class="{ 'active': doorData.DI2 && !isDataTimeout }"></div>
             <div class="status-text">
-              <div class="status-name">垃圾阻门</div>
-              <div class="status-detail fixed-height">{{ doorData.floor }} 层，阻力值 {{ doorData.resist }} N</div>
+              <div class="status-name">导向系统失效</div>
+              <div class="status-detail fixed-height">发生楼层：{{ doorData.floor }} 层</div>
             </div>
           </div>
           
           <div class="status-item">
-            <div class="led-indicator red" :class="{ active: doorData.motorOverheat && !isDataTimeout }"></div>
+            <div class="led-indicator red" :class="{ 'active': doorData.DI3 && !isDataTimeout }"></div>
             <div class="status-text">
-              <div class="status-name">门电机温度过高</div>
+              <div class="status-name">门控制器故障</div>
+              <div class="status-detail fixed-height">更换门控制器</div>
+            </div>
+          </div>
+          
+          <div class="status-item">
+            <div class="led-indicator red" :class="{ 'active': doorData.DI0 && !isDataTimeout }"></div>
+            <div class="status-text">
+              <div class="status-name">门电机故障</div>
+              <div class="status-detail fixed-height">更换门电机</div>
+            </div>
+          </div>
+          
+          <div class="status-item">
+            <div class="led-indicator red" :class="{ 'active': doorData.DI1 && !isDataTimeout }"></div>
+            <div class="status-text">
+              <div class="status-name">门刀故障</div>
+              <div class="status-detail fixed-height">更换门刀</div>
+            </div>
+          </div>
+          
+          <div class="status-item">
+            <div class="led-indicator red" :class="{ 'active': doorData.motorOverheat && !isDataTimeout }"></div>
+            <div class="status-text">
+              <div class="status-name">门电机过温</div>
               <div class="status-detail fixed-height">电机温度 {{ doorData.IPMTemperature }}°C</div>
+            </div>
+          </div>
+          
+          <div class="status-item">
+            <div class="led-indicator red" :class="{ 'active': doorData.stall && !isDataTimeout }"></div>
+            <div class="status-text">
+              <div class="status-name">门编码器故障</div>
+              <div class="status-detail fixed-height">更换编码器</div>
             </div>
           </div>
         </div>
@@ -250,7 +368,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 
 const props = defineProps({
   doorData: {
@@ -288,6 +406,9 @@ const isLeftPanel = computed(() => props.panelPosition === 'left')
 // 计算是否显示右侧面板内容
 const isRightPanel = computed(() => props.panelPosition === 'right')
 
+// 计算是否是小屏幕
+const isSmallScreen = computed(() => window.innerWidth <= 576)
+
 // 计算显示的开门时间
 const displayDoorOpenDuration = computed(() => {
   const duration = props.doorData.doorOpenDuration || 0
@@ -299,6 +420,22 @@ const displayDoorCloseDuration = computed(() => {
   const duration = props.doorData.doorCloseDuration || 0
   return duration.toFixed(1)
 })
+
+// 故障检测项列表
+const faultItems = [
+  { name: '层门开关闪断', key: 'DI1_' },
+  { name: '地坎垃圾阻门', key: 'stallByObstacle' },
+  { name: '门机同步带松', key: 'DI0_' },
+  { name: '强迫关门失效', key: 'forceClose' },
+  { name: '层门锁中心超差', key: 'DI2_' },
+  { name: '烟囱效应产生', key: 'DI3_' },
+  { name: '导向系统失效', key: 'DI2' },
+  { name: '门控制器故障', key: 'DI3' },
+  { name: '门电机故障', key: 'DI0' },
+  { name: '门刀故障', key: 'DI1' },
+  { name: '门电机过温', key: 'motorOverheat' },
+  { name: '门编码器故障', key: 'stall' }
+]
 </script>
 
 <style scoped>
@@ -317,10 +454,6 @@ const displayDoorCloseDuration = computed(() => {
   margin-top: 8px;
 }
 
-/* 移除门机故障检测部分特殊间隔 */
-.door-status-section:last-child {
-  margin-top: 8px;
-}
 
 /* 侧边面板样式 */
 .side-panel-section {
@@ -357,316 +490,11 @@ const displayDoorCloseDuration = computed(() => {
 .status-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 15px;
+  gap: 12px;
   margin-top: 10px;
 }
 
-/* 媒体查询 - 小屏幕设备 */
-@media (max-width: 576px) {
-  .door-status-section {
-    padding: 8px;
-  }
-  
-  .section-title {
-    font-size: 14px;
-    margin-bottom: 8px;
-  }
-  
-  .status-name {
-    font-size: 12px;
-  }
-  
-  .status-detail {
-    font-size: 10px;
-  }
-  
-  .status-grid {
-    gap: 5px;
-  }
-  
-  .side-panel-section {
-    padding: 3px 1px;
-    width: 100%;
-  }
-  
-  /* 左侧面板样式 */
-  .side-panel-section.left-panel,
-  .left-panel {
-    padding: 0;
-    width: 100%;
-    box-sizing: border-box;
-  }
-  
-  .left-panel .status-grid-vertical {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    width: 100%;
-    height: 100%;
-    padding: 4px;
-  }
-  
-  .left-panel .status-item-compact {
-    margin-bottom: 6px;
-    height: 36px;
-    padding: 5px 8px;
-  }
-  
-  .left-panel .status-text-compact {
-    font-size: 12px;
-  }
-  
-  /* 右侧面板样式 */
-  .side-panel-section.right-panel,
-  .right-panel {
-    padding: 0;
-    width: 100%;
-    box-sizing: border-box;
-  }
-  
-  .right-panel .status-grid-vertical {
-    width: 100%;
-    padding: 0;
-  }
-  
-  .side-panel-section.right-panel .data-display-section,
-  .right-panel .data-display-section {
-    display: grid;
-    grid-template-columns: repeat(1, 1fr);
-    gap: 4px;
-    width: 100%;
-    min-height: auto;
-    padding: 0;
-  }
-  
-  .side-panel-section.right-panel .data-item,
-  .right-panel .data-item {
-    width: 100%;
-    height: 40px;
-    margin: 0;
-    padding: 3px 4px;
-    box-sizing: border-box;
-  }
-  
-  /* 确保侧边面板中的垂直网格在小屏幕上也能正常显示 */
-  .status-grid-vertical {
-    min-height: auto;
-    gap: 4px;
-  }
-  
-  .status-item-compact {
-    padding: 3px 5px;
-    height: 24px;
-    margin-bottom: 4px;
-  }
-  
-  .status-text-compact {
-    font-size: 10px;
-  }
-}
 
-/* 小屏幕横屏模式特殊处理 */
-@media (max-width: 576px) and (orientation: landscape) {
-  .side-panel-section.right-panel .data-display-section,
-  .right-panel .data-display-section {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 4px;
-    width: 100%;
-    min-height: 0;
-    padding: 0;
-  }
-  
-  .side-panel-section.right-panel .data-item,
-  .right-panel .data-item {
-    width: 100%;
-    margin-bottom: 0;
-    padding: 3px 4px;
-  }
-  
-  /* 调整数据项的字体大小 */
-  .data-name {
-    font-size: 10px;
-    margin-bottom: 2px;
-  }
-  
-  .gauge-value {
-    font-size: 11px;
-  }
-}
-
-/* 媒体查询 - 768px以下设备统一处理 */
-@media (max-width: 768px) {
-  .door-status-section {
-    padding: 8px;
-  }
-  
-  .section-title {
-    font-size: 14px;
-    margin-bottom: 8px;
-  }
-  
-  .status-name {
-    font-size: 12px;
-  }
-  
-  .status-detail {
-    font-size: 10px;
-  }
-  
-  .status-grid {
-    gap: 5px;
-  }
-  
-  /* 左侧面板样式 */
-  .side-panel-section.left-panel,
-  .left-panel {
-    padding: 0 3px 0 5px; /* 增加左右内边距 */
-    width: 100%;
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    justify-content: center; /* 垂直居中整体内容 */
-  }
-  
-  .left-panel .status-grid-vertical {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between; /* 均匀分布子元素 */
-    width: 100%;
-    height: 100%;
-    padding: 10px 4px; /* 顶部和底部增加间距 */
-    gap: 0; /* 移除额外间距，由justify-content控制 */
-  }
-  
-  .left-panel .status-item-compact {
-    margin: 0; /* 移除外边距 */
-    height: 28px; /* 减小高度 */
-    padding: 4px 6px;
-    flex-shrink: 0; /* 防止压缩 */
-  }
-  
-  .left-panel .status-text-compact {
-    font-size: 12px;
-  }
-  
-  /* 右侧面板样式 */
-  .side-panel-section.right-panel,
-  .right-panel {
-    padding: 0 8px 0 3px;
-    width: 100%;
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-  }
-  
-  .right-panel .status-grid-vertical {
-    width: 100%;
-    padding: 10px 0;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    gap: 0;
-  }
-  
-  .side-panel-section.right-panel .data-display-section,
-  .right-panel .data-display-section {
-    display: flex;
-    flex-direction: column;
-    gap: 10px; /* 增加项目间距 */
-    width: 100%;
-    min-height: 0;
-    padding: 0;
-    justify-content: space-between;
-    height: 100%;
-  }
-  
-  .side-panel-section.right-panel .data-item,
-  .right-panel .data-item {
-    width: 100%;
-    height: 50px; /* 增加高度至50px */
-    margin: 0;
-    padding: 8px 10px; /* 增加内边距 */
-    box-sizing: border-box;
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between; /* 均匀分布名称和进度条 */
-  }
-  
-  /* 调整数据内部元素样式 */
-  .right-panel .data-name {
-    font-size: 14px; /* 增大字体 */
-    margin-bottom: 4px; /* 优化底部间距 */
-    font-weight: bold;
-    color: #fff; /* 提高对比度 */
-    line-height: 1.2; /* 调整行高 */
-  }
-  
-  .right-panel .data-gauge {
-    height: 20px; /* 增加高度 */
-    margin-top: 0; /* 移除顶部间距 */
-    display: flex;
-    align-items: center;
-  }
-  
-  .right-panel .gauge-bar {
-    height: 8px; /* 增加进度条高度 */
-    background-color: rgba(35, 56, 118, 0.5); /* 略微透明背景 */
-    border-radius: 4px; /* 增加圆角 */
-    margin-right: 8px; /* 增加与数值的间距 */
-  }
-  
-  .right-panel .gauge-fill {
-    height: 100%;
-    background-color: #22c55e; /* 恢复为原来的绿色 */
-    border-radius: 4px;
-    box-shadow: 0 0 5px rgba(34, 197, 94, 0.5); /* 调整阴影颜色匹配绿色 */
-  }
-  
-  .right-panel .gauge-value {
-    min-width: 65px; /* 增加最小宽度 */
-    font-size: 14px; /* 增大字体 */
-    font-weight: bold;
-    color: #fff; /* 提高对比度 */
-    text-shadow: 0 0 4px rgba(0, 0, 0, 0.5); /* 添加文字阴影增加可读性 */
-    margin: 0; /* 重置边距 */
-  }
-  
-  /* 横屏模式特殊处理 */
-  @media (orientation: landscape) {
-    .side-panel-section.right-panel .data-display-section,
-    .right-panel .data-display-section {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 4px;
-      width: 100%;
-      min-height: 0;
-      padding: 0;
-      height: auto; /* 移除固定高度 */
-      justify-content: flex-start; /* 重置justify-content */
-    }
-    
-    .side-panel-section.right-panel .data-item,
-    .right-panel .data-item {
-      width: 100%;
-      margin-bottom: 0;
-      padding: 3px 4px;
-    }
-    
-    /* 调整数据项的字体大小 */
-    .data-name {
-      font-size: 10px;
-      margin-bottom: 2px;
-    }
-    
-    .gauge-value {
-      font-size: 11px;
-    }
-  }
-}
 
 /* 垂直紧凑型状态网格 */
 .status-grid-vertical {
@@ -898,66 +726,6 @@ const displayDoorCloseDuration = computed(() => {
   white-space: nowrap;
 }
 
-/* 新增门机故障检测部分样式 */
-.door-status-section:last-child {
-  margin-top: 10px;
-}
-
-/* 新增门机故障检测部分标题样式 */
-.door-status-section:last-child .section-title {
-  border-left-color: #f59e0b;
-}
-
-/* 新增门机故障检测部分状态网格样式 */
-.door-status-section:last-child .status-grid {
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-}
-
-/* 新增门机故障检测部分状态项样式 */
-.door-status-section:last-child .status-item {
-  background-color: #0a1a40;
-  border-radius: 8px;
-  padding: 12px;
-  min-height: 80px;
-  display: flex;
-  align-items: flex-start;
-  border: 1px solid #1e3a8a;
-  transition: all 0.3s;
-}
-
-/* 新增门机故障检测部分状态项文本样式 */
-.door-status-section:last-child .status-text {
-  flex-grow: 1;
-}
-
-/* 新增门机故障检测部分状态项文本名称样式 */
-.door-status-section:last-child .status-name {
-  font-weight: bold;
-  font-size: 16px;
-  color: #eef2ff;
-  margin-bottom: 5px;
-}
-
-/* 新增门机故障检测部分状态项文本详情样式 */
-.door-status-section:last-child .status-detail {
-  color: #cad2ff;
-  font-size: 14px;
-  min-height: 20px;
-}
-
-/* 新增门机故障检测部分状态项文本固定高度样式 */
-.door-status-section:last-child .fixed-height {
-  min-height: 20px;
-  display: block;
-}
-
-/* 新增门机故障检测部分状态项文本维护图标样式 */
-.door-status-section:last-child .maintenance-icon {
-  font-size: 18px;
-  color: #f59e0b;
-  margin-bottom: 5px;
-}
 
 /* 维保信息样式 */
 .maintenance-info {
@@ -980,23 +748,215 @@ const displayDoorCloseDuration = computed(() => {
   min-height: 20px;
 }
 
-/* 计时器计数器样式 */
-.timer-counter {
-  font-size: 10px;
-  color: #6c92ff;
-  margin-left: 4px;
-}
-
-/* 正在计时样式 */
-.timer-running {
-  font-size: 12px;
-  color: #f59e0b;
-  animation: blink 1s infinite;
-}
-
 @keyframes blink {
   0% { opacity: 0.6; }
   50% { opacity: 1; }
   100% { opacity: 0.6; }
+}
+
+/* 媒体查询 - 小屏幕设备 */
+@media (max-width: 576px) {
+  .door-status-section {
+    padding: 8px;
+  }
+  
+  .section-title {
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+  
+  .status-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  
+  .status-item {
+    min-height: 16px !important;
+  }
+  
+  .led-indicator {
+    width: 6px !important;
+    height: 6px !important;
+    margin-right: 3px !important;
+    margin-top: 0 !important;
+    flex-shrink: 0 !important;
+  }
+  
+  .status-text {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1px !important;
+    flex: 1 !important;
+    min-width: 0 !important;
+    width: calc(100% - 9px) !important;
+  }
+  
+  .status-name {
+    font-size: 12px !important;
+    margin-bottom: 0 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    line-height: 1.2 !important;
+    width: 100% !important;
+    color: #eef2ff !important;
+    font-weight: bold !important;
+  }
+  
+  .status-detail {
+    font-size: 10px !important;
+    margin-top: 0 !important;
+    color: #cad2ff !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    line-height: 1.2 !important;
+    width: 100% !important;
+  }
+  
+  .fixed-height {
+    min-height: auto !important;
+  }
+}
+
+
+/* 媒体查询 - 768px以下设备统一处理 */
+@media (max-width: 768px) {
+  .door-status-section {
+    padding: 8px;
+  }
+  
+  .section-title {
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+  
+  .status-name {
+    font-size: 12px;
+  }
+  
+  .status-detail {
+    font-size: 10px;
+  }
+  
+  .status-grid {
+    gap: 5px;
+  }
+  
+  /* 左侧面板样式 */
+  .side-panel-section.left-panel,
+  .left-panel {
+    padding: 0 3px 0 5px; /* 增加左右内边距 */
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* 垂直居中整体内容 */
+  }
+  
+  .left-panel .status-grid-vertical {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* 均匀分布子元素 */
+    width: 100%;
+    height: 100%;
+    padding: 10px 4px; /* 顶部和底部增加间距 */
+    gap: 0; /* 移除额外间距，由justify-content控制 */
+  }
+  
+  .left-panel .status-item-compact {
+    margin: 0; /* 移除外边距 */
+    height: 28px; /* 减小高度 */
+    padding: 4px 6px;
+    flex-shrink: 0; /* 防止压缩 */
+  }
+  
+  .left-panel .status-text-compact {
+    font-size: 12px;
+  }
+  
+  /* 右侧面板样式 */
+  .side-panel-section.right-panel,
+  .right-panel {
+    padding: 0 8px 0 3px;
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  
+  .right-panel .status-grid-vertical {
+    width: 100%;
+    padding: 10px 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 0;
+  }
+  
+  .side-panel-section.right-panel .data-display-section,
+  .right-panel .data-display-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px; /* 增加项目间距 */
+    width: 100%;
+    min-height: 0;
+    padding: 0;
+    justify-content: space-between;
+    height: 100%;
+  }
+  
+  .side-panel-section.right-panel .data-item,
+  .right-panel .data-item {
+    width: 100%;
+    height: 50px; /* 增加高度至50px */
+    margin: 0;
+    padding: 8px 10px; /* 增加内边距 */
+    box-sizing: border-box;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* 均匀分布名称和进度条 */
+  }
+  
+  /* 调整数据内部元素样式 */
+  .right-panel .data-name {
+    font-size: 12px; /* 增大字体 */
+    margin-bottom: 4px; /* 优化底部间距 */
+    font-weight: bold;
+    color: #fff; /* 提高对比度 */
+    line-height: 1.2; /* 调整行高 */
+  }
+  
+  .right-panel .data-gauge {
+    height: 20px; /* 增加高度 */
+    margin-top: 0; /* 移除顶部间距 */
+    display: flex;
+    align-items: center;
+  }
+  
+  .right-panel .gauge-bar {
+    height: 8px; /* 增加进度条高度 */
+    background-color: rgba(35, 56, 118, 0.5); /* 略微透明背景 */
+    border-radius: 4px; /* 增加圆角 */
+    margin-right: 8px; /* 增加与数值的间距 */
+  }
+  
+  .right-panel .gauge-fill {
+    height: 100%;
+    background-color: #22c55e; /* 恢复为原来的绿色 */
+    border-radius: 4px;
+    box-shadow: 0 0 5px rgba(34, 197, 94, 0.5); /* 调整阴影颜色匹配绿色 */
+  }
+  
+  .right-panel .gauge-value {
+    min-width: 65px; /* 增加最小宽度 */
+    font-size: 12px; /* 增大字体 */
+    font-weight: bold;
+    color: #fff; /* 提高对比度 */
+    text-shadow: 0 0 4px rgba(0, 0, 0, 0.5); /* 添加文字阴影增加可读性 */
+    margin: 0; /* 重置边距 */
+  }
 }
 </style> 

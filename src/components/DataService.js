@@ -216,7 +216,7 @@ export function useDataService() {
         return
       }
       
-      // 标记已接收到有效主题数据 - 只要收到消息就设置为true
+      // 标记已接收到有效主题数据
       validTopicReceived.value = true
       
       // 更新十六进制显示
@@ -234,7 +234,6 @@ export function useDataService() {
       doorData.messageType = uint8Array[0]
       doorData.messageBodyLength = uint8Array.length - 1
       
-      // 获取之前的状态来检测变化
       const wasOpening = doorData.opening
       const wasClosing = doorData.closing
       const wasDoorOpenedInPlace = doorData.doorOpenedInPlace
@@ -277,12 +276,12 @@ export function useDataService() {
         doorData.closingStarted = false;
       }
       
-      // 解析 BYTE4 状态
+      // 解析 BYTE4-5 状态
       doorData.doorClosedInPlace = ((uint8Array[4] & 0x01) === 0x01) ? 1 : 0
       doorData.doorOpenedInPlace = ((uint8Array[4] & 0x02) === 0x02) ? 1 : 0
       doorData.motorOverheat = ((uint8Array[4] & 0x04) === 0x04) ? 1 : 0
       doorData.stall = ((uint8Array[4] & 0x08) === 0x08) ? 1 : 0
-      // 解析 BYTE5 状态 - 直接使用原始信号，不添加额外逻辑
+      
       doorData.forceClose = ((uint8Array[5] & 0x01) === 0x01) ? 1 : 0
       doorData.closing = ((uint8Array[5] & 0x02) === 0x02) ? 1 : 0
       doorData.opening = ((uint8Array[5] & 0x04) === 0x04) ? 1 : 0
@@ -319,15 +318,15 @@ export function useDataService() {
       }
       
       // 解析 BYTE6 输入端子状态
-      doorData.DI0 = ((uint8Array[6] & 0x01) === 0x01) ? 1 : 0
-      doorData.DI1 = ((uint8Array[6] & 0x02) === 0x02) ? 1 : 0
-      doorData.DI2 = ((uint8Array[6] & 0x04) === 0x04) ? 1 : 0
-      doorData.DI3 = ((uint8Array[6] & 0x08) === 0x08) ? 1 : 0
-      // 以下根据需求重命名
-      doorData.DI0_ = ((uint8Array[6] & 0x10) === 0x10) ? 1 : 0  // 门机同步带松动
-      doorData.DI1_ = ((uint8Array[6] & 0x20) === 0x20) ? 1 : 0  // 层门开关闪断
-      doorData.DI2_ = ((uint8Array[6] & 0x40) === 0x40) ? 1 : 0  // 门刀开关故障
-      doorData.DI3_ = ((uint8Array[6] & 0x80) === 0x80) ? 1 : 0  // 烟囱效应产生
+      doorData.DI0 = ((uint8Array[6] & 0x01) === 0x01) ? 1 : 0  // 门电机故障
+      doorData.DI1 = ((uint8Array[6] & 0x02) === 0x02) ? 1 : 0  // 门刀故障
+      doorData.DI2 = ((uint8Array[6] & 0x04) === 0x04) ? 1 : 0  // 导向系统失效
+      doorData.DI3 = ((uint8Array[6] & 0x08) === 0x08) ? 1 : 0  // 门控制器故障
+      doorData.DI0_ = ((uint8Array[6] & 0x10) === 0x10) ? 1 : 0 // 门机同步带松
+      doorData.DI1_ = ((uint8Array[6] & 0x20) === 0x20) ? 1 : 0 // 层门开关闪断
+      doorData.DI2_ = ((uint8Array[6] & 0x40) === 0x40) ? 1 : 0 // 层门锁中心超差
+      doorData.DI3_ = ((uint8Array[6] & 0x80) === 0x80) ? 1 : 0 // 烟囱效应产生
+      
       // 解析 BYTE7 输出端子状态 - 重命名
       doorData.DO0 = ((uint8Array[7] & 0x01) === 0x01) ? 1 : 0   // 开门到位端子输出状态
       doorData.DO1 = ((uint8Array[7] & 0x02) === 0x02) ? 1 : 0   // 关门到位端子输出状态
@@ -380,7 +379,7 @@ export function useDataService() {
       }
       
     } catch (error) {
-      // 捕获错误但不输出
+      console.error('处理数据时出错:', error)
     }
   }
   
@@ -410,13 +409,6 @@ export function useDataService() {
   const doorAnimationUpdate = () => {
     if (isDataTimeout.value) return;
     
-    // 强制检查开门到位状态，如果开门到位信号或开门到位输出为真，立即设置门位置为500mm（完全打开）
-    if (doorData.doorOpenedInPlace || doorData.DO0) {
-      doorData.animationDoorPosition = 500; // 使用500mm作为完全打开的参考值
-      doorData.doorPosition = Math.max(doorData.doorPosition, 500); // 确保实际门位置也至少为500mm
-      return; // 直接返回，不再进行插值计算
-    }
-    
     // 使用插值算法计算平滑动画位置
     if (doorData.previousPositions.length >= 2) {
       // 获取最新的实际位置数据
@@ -424,14 +416,13 @@ export function useDataService() {
       
       // 获取前几次的位置数据
       const positions = [...doorData.previousPositions];
-      const times = [...doorData.previousTimes];
       
       // 计算加权平均值，近期数据权重更高
       let weightedPosition = 0;
       let weightSum = 0;
       
       for (let i = 0; i < positions.length; i++) {
-        const weight = i + 1; // 权重递增，越近的数据权重越大
+        const weight = (i + 1) * 1.2; // 降低权重差异，使数据更平滑
         weightedPosition += positions[i] * weight;
         weightSum += weight;
       }
@@ -443,29 +434,20 @@ export function useDataService() {
       doorData.animationDoorPosition = doorData.animationDoorPosition || currentPosition;
       
       // 根据实际位置和平滑位置计算动画位置
-      const smoothFactor = 0.7; // 增大平滑系数，使动画更快跟随
+      const smoothFactor = 0.5; // 降低平滑系数，使动画更连贯
       doorData.animationDoorPosition += (smoothPosition - doorData.animationDoorPosition) * smoothFactor;
       
-      // 如果开门到位或关门到位，快速结束动画
-      if (doorData.doorOpenedInPlace || doorData.DO0) {
-        // 立即设置到最终位置（完全打开）
-        doorData.animationDoorPosition = 500;
-      } else if (doorData.doorClosedInPlace) {
-        // 立即设置到最终位置（完全关闭）
-        doorData.animationDoorPosition = 0;
-      }
-      
-      // 确保动画位置不超过500mm，为完全打开状态
-      if (doorData.animationDoorPosition > 500) {
-        doorData.animationDoorPosition = 500;
+      // 确保动画位置不超过最大值(900mm)
+      if (doorData.animationDoorPosition > 900) {
+        doorData.animationDoorPosition = 900;
       }
     } else {
       // 数据不足，直接使用当前位置
       doorData.animationDoorPosition = doorData.doorPosition;
       
-      // 确保动画位置不超过500mm
-      if (doorData.animationDoorPosition > 500) {
-        doorData.animationDoorPosition = 500;
+      // 确保动画位置不超过最大值(900mm)
+      if (doorData.animationDoorPosition > 900) {
+        doorData.animationDoorPosition = 900;
       }
     }
   }

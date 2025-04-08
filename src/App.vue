@@ -1,28 +1,11 @@
 <template>
   <div class="app-container">
     <div class="main-container">
-      <!-- 顶部标题和管理员模式开关 -->
+      <!-- 顶部标题 -->
       <div class="app-header">
         <header-component 
           :logo-src="logoSrc" 
-          :battery-level="batteryLevel" 
-          @connect="connectMqtt" 
-          @disconnect="disconnectMqtt" 
-          :is-connected="mqttConnected" 
-          :is-admin-mode="isAdminMode" 
-          @toggle-admin="toggleAdminMode" />
-        
-        <!-- 管理员模式开关 -->
-        <div v-if="isAdmin" class="admin-mode-switch">
-          <span class="admin-label">管理员模式</span>
-          <el-switch
-            v-model="isAdminMode"
-            active-color="#13ce66"
-            inactive-color="#ff4949"
-            active-text="开启"
-            inactive-text="关闭"
-          />
-        </div>
+          :battery-level="batteryLevel" />
       </div>
       
       <el-main>
@@ -44,7 +27,7 @@
               :key="'door-panel'"
               :door-data="dataService.doorData" 
               :is-data-timeout="dataService.isDataTimeout.value" 
-              :is-admin-mode="isAdminMode"
+              :is-admin-mode="true"
               ref="elevatorDoorRef"
               class="door-panel-center" />
             
@@ -87,71 +70,20 @@
             :valid-topic-received="dataService.validTopicReceived.value"
             class="main-status-panel"
             panel-position="main" />
-          
-          <!-- 十六进制数据显示组件 - 仅管理员可见 -->
-          <hex-display-component 
-            v-if="isAdminMode" 
-            :key="'hex-display'"
-            :hex-bytes="dataService.lastMessageHex" 
-            :last-update-time="dataService.lastUpdateTime" 
-            :messages="dataService.hexMessageHistory" />
         </div>
       </el-main>
-      
-      <!-- 底部连接状态栏组件 -->
-      <footer-component 
-        :mqtt-connected="mqttConnected"
-        :broker="connectionForm.broker"
-        :topic="connectionForm.topic"
-        :connecting="connecting"
-        :is-admin="isAdmin"
-        @connect="connectMqtt"
-        @disconnect="disconnectMqtt"
-        @showSettings="showAdminLogin = true"
-        @logout="adminLogout"
-      />
     </div>
-    
-    <!-- 管理员登录对话框 -->
-    <el-dialog
-      title="管理员验证"
-      v-model="showAdminLogin"
-      width="300px"
-      center>
-      <el-form :model="adminLoginForm">
-        <el-form-item label="密码" required>
-          <el-input 
-            type="password" 
-            v-model="adminLoginForm.password"
-            placeholder="请输入管理员密码"
-            show-password
-            @keyup.enter="testAdminLogin"
-          ></el-input>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="showAdminLogin = false">取消</el-button>
-          <el-button type="primary" @click="testAdminLogin">确认</el-button>
-        </span>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted, onBeforeUnmount, computed } from 'vue'
-import { ElMessage } from 'element-plus'
 import LogoImage from './assets/images/logo.png'
 import DoorStatusComponent from './components/DoorStatusComponent.vue'
 import ElevatorDoorComponent from './components/ElevatorDoorComponent.vue'
 
 // 导入组件
 import HeaderComponent from './components/HeaderComponent.vue'
-import HexDisplayComponent from './components/HexDisplayComponent.vue'
-import FooterComponent from './components/FooterComponent.vue'
-import HistogramComponent from './components/HistogramComponent.vue'
-import AdminLoginComponent from './components/AdminLoginComponent.vue'
 
 // 导入服务
 import { useMqttService } from './components/MqttService'
@@ -166,22 +98,11 @@ const dataService = useDataService()
 // 添加数据处理间隔定时器引用
 const dataProcessInterval = ref(null)
 
-// 管理员相关
-const isAdmin = ref(false)
-const showAdminLogin = ref(false)
-const adminLoginForm = reactive({
-  password: ''
-})
-const ADMIN_PASSWORD = '123456' // 硬编码密码仅用于演示
-
 // Logo路径
 const logoSrc = ref(LogoImage)
 
 // 电池电量
 const batteryLevel = ref(85)
-
-// 管理员模式状态
-const isAdminMode = ref(false)
 
 // 数据超时检查定时器
 const dataTimeoutCheckInterval = ref(null)
@@ -243,24 +164,6 @@ onBeforeUnmount(() => {
   disconnectMqtt()
 })
 
-// 测试管理员登录
-const testAdminLogin = () => {
-  if (adminLoginForm.password === ADMIN_PASSWORD) {
-    isAdmin.value = true
-    showAdminLogin.value = false
-    ElMessage.success('管理员验证成功')
-    adminLoginForm.password = '' // 清空密码
-  } else {
-    ElMessage.error('密码错误')
-  }
-}
-
-// 管理员登出方法
-const adminLogout = () => {
-  isAdmin.value = false
-  ElMessage.success('已退出管理员模式')
-}
-
 // 自定义MQTT连接方法
 const connectMqtt = () => {
   // 传递数据处理函数给 MQTT 服务
@@ -275,16 +178,6 @@ const disconnectMqtt = () => {
     // 断开连接后直接调用数据服务的超时设置方法
     dataService.setDataTimeout();
   });
-}
-
-// 切换管理员模式
-const toggleAdminMode = () => {
-  isAdminMode.value = !isAdminMode.value
-  if (isAdminMode.value) {
-    connectMqtt()
-  } else {
-    disconnectMqtt()
-  }
 }
 
 // 数据处理函数
@@ -317,12 +210,12 @@ body {
 .main-container {
   padding: 0;
   background-color: #0a1a40;
-  padding-bottom: 80px; /* 为底部状态栏留出空间 */
+  padding-bottom: 20px;
   flex: 1;
   width: 100%;
 }
 
-/* 顶部标题和管理员模式开关布局 */
+/* 顶部标题布局 */
 .app-header {
   display: flex;
   justify-content: space-between;
@@ -330,23 +223,6 @@ body {
   padding: 0 20px;
   position: relative;
   margin-bottom: 20px;
-}
-
-.admin-mode-switch {
-  display: flex;
-  align-items: center;
-  background-color: #132859;
-  padding: 5px 12px;
-  border-radius: 8px;
-  border: 1px solid #1e3a8a;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-.admin-label {
-  margin-right: 10px;
-  font-size: 14px;
-  font-weight: bold;
-  color: #4d77f9;
 }
 
 .el-main {
@@ -529,50 +405,6 @@ body {
     margin: 0;
     overflow: hidden;
   }
-  
-  /* 横屏模式特殊处理 */
-  @media (orientation: landscape) {
-    .unified-door-container {
-      display: flex;
-      flex-direction: row;
-      flex-wrap: wrap;
-      justify-content: space-between;
-    }
-    
-    .door-panel-center {
-      width: 50%;
-      order: 1;
-    }
-    
-    .status-panels-wrapper {
-      width: 50%;
-      order: 2;
-      flex-direction: column;
-    }
-    
-    .status-panel-left-small, 
-    .status-panel-right-small {
-      width: 100%;
-      margin: 0 0 5px 0;
-    }
-    
-    .status-panel-left-small {
-      height: auto;
-      min-height: 120px;
-      margin-bottom: 5px;
-      border-left: none;
-      border-top: 3px solid #4d77f9;
-      padding-top: 2px; /* 确保顶部边框完整显示 */
-    }
-    
-    .status-panel-right-small {
-      height: auto;
-      flex-grow: 1;
-      border-right: none;
-      border-bottom: 3px solid #4d77f9;
-      padding-bottom: 2px; /* 确保底部边框完整显示 */
-    }
-  }
 }
 
 /* 门机运行状态组件样式 */
@@ -607,4 +439,6 @@ body {
   flex-direction: column;
   align-items: center;
 }
+
+
 </style> 

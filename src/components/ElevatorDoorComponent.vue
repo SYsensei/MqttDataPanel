@@ -22,50 +22,6 @@
         <div class="door-right" :style="doorRightStyle"></div>
       </div>
     </div>
-    
-    <!-- 管理员模式：门位置详情和曲线图 -->
-    <div class="admin-only-section" v-if="isAdminMode">
-      <!-- 门位置数值信息 -->
-      <div class="door-position-info">
-        <div class="position-value">{{ doorPositionText }}</div>
-        <div class="position-bar">
-          <div class="position-fill" :style="{ width: `${doorOpenPercentage}%` }"></div>
-        </div>
-        <div class="position-percentage">{{ doorOpenPercentage.toFixed(1) }}%</div>
-      </div>
-      
-      <!-- 门位置变化曲线图 -->
-      <div class="door-position-chart-wrapper">
-        <div class="chart-title">门位置变化曲线</div>
-        <div class="door-position-chart">
-          <div class="chart-y-axis">
-            <div class="chart-y-label">{{ maxDoorPosition }}</div>
-            <div class="chart-y-label">{{ Math.round(maxDoorPosition / 2) }}</div>
-            <div class="chart-y-label">0</div>
-          </div>
-          <div class="chart-grid">
-            <div class="chart-scroll-container" ref="chartScrollContainer">
-              <svg :width="chartWidth + 'px'" height="150" class="position-chart-svg">
-                <!-- 水平参考线 -->
-                <line x1="0" y1="0" x2="100%" y2="0" class="chart-grid-line" />
-                <line x1="0" y1="75" x2="100%" y2="75" class="chart-grid-line" />
-                <line x1="0" y1="150" x2="100%" y2="150" class="chart-grid-line" />
-                
-                <!-- 位置曲线 -->
-                <polyline :points="chartPoints" class="position-line" />
-                
-                <!-- 当前位置点 -->
-                <circle v-if="chartPoints" 
-                       :cx="chartPoints.split(' ').pop().split(',')[0]" 
-                       :cy="chartPoints.split(' ').pop().split(',')[1]" 
-                       r="4" 
-                       class="current-position-point" />
-              </svg>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -242,14 +198,9 @@ function animatePosition() {
   
   // 应用插值，创建平滑过渡
   if (Math.abs(diff) > 0.1) {
-    // 使用非线性插值，差距越大移动越快
-    const speed = Math.min(Math.abs(diff) * 0.1 + interpolationSpeed, 0.95) // 增大速度变化参数和最大速度
+    // 使用更小的速度系数，使动画更平滑
+    const speed = Math.min(Math.abs(diff) * 0.05 + 0.1, 0.3) // 降低速度系数和最大速度
     currentDoorPosition.value += diff * speed
-    
-    // 如果门几乎到位（差值小于10），加速到位
-    if (Math.abs(diff) < 10) {
-      currentDoorPosition.value = targetDoorPosition.value
-    }
   } else {
     currentDoorPosition.value = targetDoorPosition.value
   }
@@ -386,20 +337,20 @@ const doorLeftStyle = computed(() => {
   // 使用平滑动画位置
   const animationPosition = props.doorData.animationDoorPosition || props.doorData.doorPosition;
   
-  // 开门：0-500mm，0表示关闭，500表示完全打开
-  // 转换为CSS中的百分比位置，关闭时为0%，完全打开时为50%（左门）
-  const openPercentage = (animationPosition / 500) * 100; // 0-50%
+  // 开门：按照maxDoorPosition(900mm)计算百分比
+  // 转换为CSS中的百分比位置，关闭时为0%，完全打开时为100%（左门）
+  const openPercentage = (animationPosition / 900) * 100; // 0-100%
   
   if (props.isDataTimeout) {
     return {
       transform: `translateX(-5%)`,
-      transition: 'transform 0.5s ease-out'
+      transition: 'transform 0.5s ease'
     }
   }
   
   return {
     transform: `translateX(-${openPercentage}%)`,
-    transition: 'transform 0.5s ease-out'
+    transition: 'transform 0.5s linear' // 使用线性过渡
   }
 })
 
@@ -407,20 +358,20 @@ const doorRightStyle = computed(() => {
   // 使用平滑动画位置
   const animationPosition = props.doorData.animationDoorPosition || props.doorData.doorPosition;
   
-  // 开门：0-500mm，0表示关闭，500表示完全打开
-  // 转换为CSS中的百分比位置，关闭时为0%，完全打开时为50%（右门）
-  const openPercentage = (animationPosition / 500) * 100; // 0-50%
+  // 开门：按照maxDoorPosition(900mm)计算百分比
+  // 转换为CSS中的百分比位置，关闭时为0%，完全打开时为100%（右门）
+  const openPercentage = (animationPosition / 900) * 100; // 0-100%
   
   if (props.isDataTimeout) {
     return {
       transform: `translateX(5%)`,
-      transition: 'transform 0.5s ease-out'
+      transition: 'transform 0.5s ease'
     }
   }
   
   return {
     transform: `translateX(${openPercentage}%)`,
-    transition: 'transform 0.5s ease-out'
+    transition: 'transform 0.5s linear' // 使用线性过渡
   }
 })
 
@@ -583,10 +534,10 @@ defineExpose({
   width: 50%;
   height: 100%;
   background-color: #1e3a8a;
-  transition: transform 0.3s ease-out;
   z-index: 2;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
   transform-origin: left;
+  will-change: transform; /* 优化性能 */
 }
 
 .door-left {
@@ -599,128 +550,7 @@ defineExpose({
   border-left: 1px solid #4d77f9;
 }
 
-/* 管理员模式部分 */
-.admin-only-section {
-  width: 100%;
-  margin-top: 20px;
-  border-top: 1px solid #1e3a8a;
-  padding-top: 20px;
-}
 
-/* 门位置信息样式 */
-.door-position-info {
-  margin: 0 auto;
-  width: 80%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  margin-bottom: 20px;
-}
-
-.position-value {
-  font-size: 14px;
-  font-weight: bold;
-  color: #a0aee0;
-}
-
-.position-bar {
-  width: 100%;
-  height: 12px;
-  background-color: #0a1a40;
-  border-radius: 6px;
-  overflow: hidden;
-  border: 1px solid #1e3a8a;
-}
-
-.position-fill {
-  height: 100%;
-  background-color: #4d77f9;
-  width: 50%;
-  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-  background-image: linear-gradient(to right, #3a5fc4, #4d77f9);
-}
-
-.position-percentage {
-  font-size: 14px;
-  font-weight: bold;
-  color: #4d77f9;
-}
-
-/* 门位置变化曲线图样式 */
-.door-position-chart-wrapper {
-  width: 90%;
-  margin: 10px auto 0;
-  background-color: #0a1a40;
-  border-radius: 8px;
-  padding: 15px;
-  border: 1px solid #1e3a8a;
-}
-
-.chart-title {
-  font-size: 14px;
-  font-weight: bold;
-  color: #eef2ff;
-  margin-bottom: 10px;
-  text-align: center;
-}
-
-.door-position-chart {
-  display: flex;
-  height: 150px;
-}
-
-.chart-y-axis {
-  width: 40px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: flex-end;
-  padding-right: 5px;
-}
-
-.chart-y-label {
-  font-size: 12px;
-  color: #a0aee0;
-}
-
-.chart-grid {
-  flex: 1;
-  position: relative;
-  border-left: 1px solid #3a5fc4;
-  border-bottom: 1px solid #3a5fc4;
-  overflow: hidden;
-}
-
-.chart-scroll-container {
-  overflow-x: auto;
-  overflow-y: hidden;
-  width: 100%;
-  height: 100%;
-}
-
-.chart-grid-line {
-  stroke: #1e3a8a;
-  stroke-width: 1;
-  stroke-dasharray: 4;
-}
-
-.position-line {
-  fill: none;
-  stroke: #4d77f9;
-  stroke-width: 2;
-  stroke-linejoin: round;
-}
-
-.current-position-point {
-  fill: #22c55e;
-  stroke: #16a34a;
-  stroke-width: 2;
-}
-
-.position-chart-svg {
-  display: block;
-}
 
 /* 媒体查询 - 小屏幕设备 */
 @media (max-width: 576px) {

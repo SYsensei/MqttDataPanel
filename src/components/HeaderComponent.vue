@@ -3,7 +3,7 @@
     <div class="center-section">
       <img v-if="logoSrc" :src="logoSrc" alt="Logo" class="header-logo" />
       <div class="title-container">
-        <div class="title">天狼星AI门机</div>
+        <div class="title">天狼星改造门机</div>
         <div class="subtitle" style="display: none;">美的先行研究中心</div>
       </div>
     </div>
@@ -45,36 +45,34 @@ const weatherIcon = ref('☀️') // 默认天气图标
 // 获取天气数据
 const fetchWeatherData = async () => {
   try {
-    // 使用高德地图天气API
-    // 注意：在实际项目中应替换为自己的API密钥
-    const key = 'a29f01a895a7f575d9859f0572e5d0ba'
-    const cityCode = '310000' // 上海市的城市编码
-    const url = `https://restapi.amap.com/v3/weather/weatherInfo?city=${cityCode}&key=${key}&extensions=base`
+    // 使用中国气象局公开数据接口
+    const url = 'http://www.nmc.cn/rest/weather?stationid=58362' // 上海站ID
     
     const response = await fetch(url)
     const data = await response.json()
     
-    if (data.status === '1' && data.lives && data.lives.length > 0) {
-      const weatherData = data.lives[0]
-      city.value = weatherData.city
-      temperature.value = `${weatherData.temperature}°C`
-      weatherCondition.value = weatherData.weather
+    if (data && data.data) {
+      const weatherData = data.data
+      city.value = '上海'
+      temperature.value = `${weatherData.weather.temperature}°C`
+      weatherCondition.value = weatherData.weather.info
       
       // 根据天气状况设置对应的图标
-      if (weatherData.weather.includes('晴')) {
+      const weatherInfo = weatherData.weather.info.toLowerCase()
+      if (weatherInfo.includes('晴')) {
         weatherIcon.value = '☀️'
-      } else if (weatherData.weather.includes('多云')) {
+      } else if (weatherInfo.includes('多云')) {
         weatherIcon.value = '⛅'
-      } else if (weatherData.weather.includes('阴')) {
+      } else if (weatherInfo.includes('阴')) {
         weatherIcon.value = '☁️'
-      } else if (weatherData.weather.includes('雨')) {
+      } else if (weatherInfo.includes('雨')) {
         weatherIcon.value = '🌧️'
-      } else if (weatherData.weather.includes('雪')) {
+      } else if (weatherInfo.includes('雪')) {
         weatherIcon.value = '❄️'
-      } else if (weatherData.weather.includes('雾') || weatherData.weather.includes('霾')) {
+      } else if (weatherInfo.includes('雾') || weatherInfo.includes('霾')) {
         weatherIcon.value = '🌫️'
-      } else if (weatherData.weather.includes('风')) {
-        weatherIcon.value = '🌬️'
+      } else if (weatherInfo.includes('雷')) {
+        weatherIcon.value = '⛈️'
       } else {
         weatherIcon.value = '☀️'
       }
