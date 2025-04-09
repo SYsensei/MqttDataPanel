@@ -1,0 +1,38 @@
+stages:
+  - build
+  - deploy
+
+image: node:16
+
+cache:
+  paths:
+    - node_modules/
+    - .npm/
+
+variables:
+  DEPLOY_ENV: GITLAB
+
+build:
+  stage: build
+  script:
+    - npm install
+    - npm run build:gitlab
+    - ls -la dist/
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 week
+
+pages:
+  stage: deploy
+  script:
+    - mkdir -p public
+    - cp -r dist/* public/
+    - touch public/.nojekyll
+    - ls -la public/
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+    - main 

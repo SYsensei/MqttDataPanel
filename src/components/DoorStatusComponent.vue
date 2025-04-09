@@ -337,6 +337,35 @@ const displayDoorCloseDuration = computed(() => {
   return duration.toFixed(1)
 })
 
+// 虚拟阻力值小数位
+const resistFractionDigit = ref(0);
+
+// 当开门或关门到位时更新阻力值的虚拟小数点
+watch(() => props.doorData.doorOpenedInPlace, (newVal) => {
+  if (newVal) {
+    // 开门到位时更新虚拟小数位
+    resistFractionDigit.value = Math.floor(Math.random() * 10);
+  }
+});
+
+watch(() => props.doorData.doorClosedInPlace, (newVal) => {
+  if (newVal) {
+    // 关门到位时更新虚拟小数位
+    resistFractionDigit.value = Math.floor(Math.random() * 10);
+  }
+});
+
+// 将小数值四舍五入到最近的0.5倍数
+const roundToHalf = (value) => {
+  // 如果原始值是0，则直接返回0
+  if (value === 0) {
+    return 0;
+  }
+  
+  const rounded = Math.round(value * 2) / 2;
+  return rounded === 0 ? 0.5 : rounded; // 非0值如果四舍五入后变成0，则确保最小为0.5
+};
+
 // 故障检测项列表
 const faultItems = [
   { name: '层门开关闪断', key: 'DI1_' },
@@ -345,12 +374,12 @@ const faultItems = [
   { name: '强迫关门失效', key: 'forceClose' },
   { name: '层门锁中心超差', key: 'DI2_' },
   { name: '烟囱效应产生', key: 'DI3_' },
-  { name: '导向系统失效', key: '' },
-  { name: '门控制器故障', key: '' },
-  { name: '门电机故障', key: '' },
+  { name: '导向系统失效', key: 'DI4' },
+  { name: '门控制器故障', key: 'DI5' },
+  { name: '门电机故障', key: 'DI6' },
   { name: '门刀故障', key: 'DI2_' },
   { name: '门电机过温', key: 'motorOverheat' },
-  { name: '门编码器故障', key: '' }
+  { name: '门编码器故障', key: 'DI7' }
 ]
 
 // 故障检测相关状态
@@ -383,14 +412,18 @@ const isFaultActive = (item) => {
 // 获取故障详情
 const getFaultDetail = (item) => {
   if (item.key === 'stallByObstacle') {
-    return `${props.doorData.floor} 层，阻力值 ${props.doorData.resist} N`;
+    // 添加虚拟小数点到阻力值
+    return `${props.doorData.floor} 层，阻力值 ${props.doorData.resist}.${resistFractionDigit.value}N`;
   } else if (item.key === 'DI0_') {
-    return `调节螺丝需拧紧 ${props.doorData.turns.toFixed(1)} 圈`;
+    // 将圈数四舍五入到最近的0.5倍数
+    const turns = props.doorData.turns || 0;
+    const roundedTurns = roundToHalf(turns);
+    return `调节螺丝需拧紧 ${roundedTurns.toFixed(1)} 圈`;
   } else if (item.key === 'motorOverheat') {
     return `电机温度 ${props.doorData.IPMTemperature}°C`;
-  } else if (item.key === 'DI0' || item.key === 'DI3' || item.key === 'stall') {
-    return '更换' + (item.key === 'DI0' ? '门电机' : item.key === 'DI3' ? '门控制器' : '编码器');
-  } else if (item.key === 'DI1') {
+  } else if (item.key === 'DI6' || item.key === 'DI5' || item.key === 'DI7') {
+    return '更换' + (item.key === 'DI6' ? '门电机' : item.key === 'DI5' ? '门控制器' : '编码器');
+  } else if (item.key === 'DI2_') {
     return '更换门刀';
   } else {
     return `发生楼层：${props.doorData.floor} 层`;
@@ -970,7 +1003,7 @@ onUnmounted(() => {
 /* 增强指示灯检测动画 */
 .led-indicator.detecting {
   animation: pulse 1s infinite;
-  background-color: #4d77f9 !important; /* 蓝色脉动指示灯，表示正在检测 */
+  background-color: #22c55e !important; /* 蓝色脉动指示灯，表示正在检测 */
   box-shadow: 0 0 10px #4d77f9, inset 0 0 5px rgba(255, 255, 255, 0.3) !important;
 }
 

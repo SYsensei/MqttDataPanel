@@ -1,28 +1,37 @@
 import { createApp } from 'vue'
+import App from './App.vue'
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
-import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
-import App from './App.vue'
+import { getDeployEnv } from './utils/deploy-env'
 
-// 尝试全局引入MQTT.js
-let mqtt = null
-try {
-  // 引入MQTT.js
-  import('mqtt').then(module => {
-    // 尝试不同的导出形式
-    mqtt = module.default || module
-    window.mqttLib = mqtt
-    console.log('MQTT.js 全局加载成功')
-  }).catch(err => {
-    console.warn('MQTT.js加载失败:', err)
-  })
-} catch (e) {
-  console.warn('MQTT.js导入错误:', e)
-}
+// 创建全局CSS变量
+const style = document.createElement('style')
+style.textContent = `
+  :root {
+    --color-primary: #3b82f6;
+    --color-background: #020617;
+    --color-text: #e2e8f0;
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-text);
+    margin: 0;
+  }
+`
+document.head.appendChild(style)
 
-// 创建并挂载应用
+// 创建Vue应用
 const app = createApp(App)
-app.use(ElementPlus, {
-  locale: zhCn,
-})
-app.mount('#app') 
+
+// 使用ElementPlus组件库
+app.use(ElementPlus)
+
+// 输出当前部署环境
+const deployEnv = getDeployEnv()
+console.log(`当前部署环境: ${deployEnv}`)
+
+// 挂载应用
+app.mount('#app')
+
+// 调试信息
+console.log('Vue应用已加载完成') 
