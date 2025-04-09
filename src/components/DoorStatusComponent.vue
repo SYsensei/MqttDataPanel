@@ -8,77 +8,77 @@
         <div class="status-grid">
           <!-- 大屏幕下的显示顺序 -->
           <template v-if="!isSmallScreen">
-            <!-- 门状态 -->
-            <div class="status-item">
+          <!-- 门状态 -->
+          <div class="status-item">
               <div class="led-indicator green" :class="{ 'active': !isDataTimeout && validTopicReceived }"></div>
-              <div class="status-text">
-                <div class="status-name">正常</div>
-              </div>
+            <div class="status-text">
+              <div class="status-name">正常</div>
             </div>
-            
-            <div class="status-item">
+          </div>
+          
+          <div class="status-item">
               <div class="led-indicator green" :class="{ 'active': doorData.opening && !doorData.DO0 && !isDataTimeout }"></div>
-              <div class="status-text">
-                <div class="status-name">开门中...</div>
+            <div class="status-text">
+              <div class="status-name">开门中...</div>
                 <div class="status-detail fixed-height" v-if="doorData.opening && !doorData.DO0 && !isDataTimeout">正在开门，请注意安全</div>
-              </div>
             </div>
-            
-            <div class="status-item">
+          </div>
+          
+          <div class="status-item">
               <div class="led-indicator green" :class="{ 'active': doorData.DO0 && !isDataTimeout }"></div>
-              <div class="status-text">
-                <div class="status-name">开门到位</div>
-                <div class="status-detail fixed-height" v-if="doorData.doorOpenedInPlace && !isDataTimeout">开门已完成，用时{{ displayDoorOpenDuration }}s</div>
+            <div class="status-text">
+              <div class="status-name">开门到位</div>
+              <div class="status-detail fixed-height" v-if="doorData.doorOpenedInPlace && !isDataTimeout">开门已完成，用时{{ displayDoorOpenDuration }}s</div>
                 <div class="status-detail fixed-height" v-else-if="doorData.doorOpenTimer.isRunning && !isDataTimeout">正在开门...</div>
-              </div>
             </div>
-            
-            <div class="status-item">
+          </div>
+          
+          <div class="status-item">
               <div class="led-indicator red" :class="{ 'active': doorData.faultCode > 0 && !isDataTimeout }"></div>
-              <div class="status-text">
-                <div class="status-name">故障</div>
-                <div class="status-detail fixed-height" v-if="doorData.faultCode > 0 && !isDataTimeout">Err{{ doorData.faultCode }}</div>
-              </div>
+            <div class="status-text">
+              <div class="status-name">故障</div>
+              <div class="status-detail fixed-height" v-if="doorData.faultCode > 0 && !isDataTimeout">Err{{ doorData.faultCode }}</div>
             </div>
-            
-            <div class="status-item">
+          </div>
+          
+          <div class="status-item">
               <div class="led-indicator green" :class="{ 'active': doorData.closing && !doorData.DO1 && !isDataTimeout }"></div>
-              <div class="status-text">
-                <div class="status-name">关门中...</div>
+            <div class="status-text">
+              <div class="status-name">关门中...</div>
                 <div class="status-detail fixed-height" v-if="doorData.closing && !doorData.DO1 && !isDataTimeout">正在关门，请注意安全</div>
-              </div>
             </div>
-            
-            <div class="status-item">
+          </div>
+          
+          <div class="status-item">
               <div class="led-indicator green" :class="{ 'active': doorData.DO1 && !isDataTimeout }"></div>
-              <div class="status-text">
-                <div class="status-name">关门到位</div>
-                <div class="status-detail fixed-height" v-if="doorData.doorClosedInPlace && !isDataTimeout">关门已完成，用时{{ displayDoorCloseDuration }}s</div>
+            <div class="status-text">
+              <div class="status-name">关门到位</div>
+              <div class="status-detail fixed-height" v-if="doorData.doorClosedInPlace && !isDataTimeout">关门已完成，用时{{ displayDoorCloseDuration }}s</div>
                 <div class="status-detail fixed-height" v-else-if="doorData.doorCloseTimer.isRunning && !isDataTimeout">正在关门...</div>
-              </div>
             </div>
-            
-            <div class="status-item">
+          </div>
+          
+          <div class="status-item">
               <div class="led-indicator green" :class="{ 'active': doorData.doorPosition < 20 && !isDataTimeout }"></div>
-              <div class="status-text">
-                <div class="status-name">门锁回路</div>
-                <div class="status-detail fixed-height"></div>
-              </div>
+            <div class="status-text">
+              <div class="status-name">门锁回路</div>
+              <div class="status-detail fixed-height"></div>
             </div>
-            
-            <div class="status-item">
-              <div class="status-text">
-                <div class="status-name">累计运行次数</div>
-                <div class="status-detail fixed-height">{{ doorData.totalOperations }}次</div>
-              </div>
+          </div>
+          
+          <div class="status-item">
+            <div class="status-text">
+              <div class="status-name">累计运行次数</div>
+              <div class="status-detail fixed-height">{{ doorData.totalOperations }}次</div>
             </div>
-            
-            <div class="status-item">
-              <div class="status-text">
-                <div class="status-name">最近维保日期</div>
-                <div class="status-detail fixed-height">2025年3月15日</div>
-              </div>
+          </div>
+          
+          <div class="status-item">
+            <div class="status-text">
+              <div class="status-name">最近维保日期</div>
+              <div class="status-detail fixed-height">2025年3月15日</div>
             </div>
+          </div>
           </template>
           
           <!-- 小屏幕下的显示顺序 -->
@@ -826,7 +826,7 @@ const faultItems = [
   }
   
   .section-title {
-    font-size: 14px;
+  font-size: 14px;
     margin-bottom: 8px;
   }
   
@@ -924,7 +924,7 @@ const faultItems = [
   .right-panel .data-name {
     font-size: 12px; /* 增大字体 */
     margin-bottom: 4px; /* 优化底部间距 */
-    font-weight: bold;
+  font-weight: bold;
     color: #fff; /* 提高对比度 */
     line-height: 1.2; /* 调整行高 */
   }

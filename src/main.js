@@ -20,13 +20,9 @@ try {
   console.warn('MQTT.js导入错误:', e)
 }
 
-// 创建Vue应用实例
+// 创建并挂载应用
 const app = createApp(App)
-
-// 使用Element Plus并设置为中文
 app.use(ElementPlus, {
-  locale: zhCn
+  locale: zhCn,
 })
-
-// 挂载应用
 app.mount('#app') 

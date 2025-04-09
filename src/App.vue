@@ -72,6 +72,7 @@
             panel-position="main" />
         </div>
       </el-main>
+      <ScrollHint scrollContainerId=".app-container" :debug="false" />
     </div>
   </div>
 </template>
@@ -81,6 +82,7 @@ import { ref, reactive, onMounted, onBeforeUnmount, computed } from 'vue'
 import LogoImage from './assets/images/logo.png'
 import DoorStatusComponent from './components/DoorStatusComponent.vue'
 import ElevatorDoorComponent from './components/ElevatorDoorComponent.vue'
+import ScrollHint from './components/ScrollHint.vue'
 
 // 导入组件
 import HeaderComponent from './components/HeaderComponent.vue'
@@ -200,7 +202,7 @@ body {
   width: 100vw;
   margin: 0;
   padding: 0;
-  overflow: auto;
+  overflow-y: auto; /* 确保垂直滚动正常工作 */
   background-color: #0a1a40;
   color: #eef2ff;
   display: flex;
@@ -213,6 +215,7 @@ body {
   padding-bottom: 20px;
   flex: 1;
   width: 100%;
+  min-height: 120vh; /* 确保有足够的高度可以滚动 */
 }
 
 /* 顶部标题布局 */
