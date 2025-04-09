@@ -3,7 +3,7 @@
     <div class="center-section">
       <img v-if="logoSrc" :src="logoSrc" alt="Logo" class="header-logo" />
       <div class="title-container">
-        <div class="title">天狼星改造门机</div>
+        <div class="title">天狼星门机</div>
         <div class="subtitle" style="display: none;">美的先行研究中心</div>
       </div>
     </div>

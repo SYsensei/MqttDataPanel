@@ -155,99 +155,15 @@
         <h2 class="section-title">门机故障检测</h2>
         
         <div class="status-grid">
-          <div class="status-item">
-            <div class="led-indicator yellow" :class="{ 'active': doorData.DI1_ && !isDataTimeout }"></div>
+          <div v-for="(item, index) in faultItems" :key="item.key" class="status-item">
+            <div class="led-indicator" 
+                 :class="[getIndicatorColor(item), { 
+                   'active': isFaultActive(item), 
+                   'detecting': currentDetectionIndex === index && isDetecting 
+                 }]"></div>
             <div class="status-text">
-              <div class="status-name">层门开关闪断</div>
-              <div class="status-detail fixed-height">发生楼层：{{ doorData.floor }} 层</div>
-            </div>
-          </div>
-          
-          <div class="status-item">
-            <div class="led-indicator red" :class="{ 'active': doorData.stallByObstacle && !isDataTimeout }"></div>
-            <div class="status-text">
-              <div class="status-name">地坎垃圾阻门</div>
-              <div class="status-detail fixed-height">{{ doorData.floor }} 层，阻力值 {{ doorData.resist }} N</div>
-            </div>
-          </div>
-          
-          <div class="status-item">
-            <div class="led-indicator yellow" :class="{ 'active': doorData.DI0_ && !isDataTimeout }"></div>
-            <div class="status-text">
-              <div class="status-name">门机同步带松</div>
-              <div class="status-detail fixed-height">调节螺丝需拧紧 {{ doorData.turns.toFixed(1) }} 圈</div>
-            </div>
-          </div>
-          
-          <div class="status-item">
-            <div class="led-indicator red" :class="{ 'active': doorData.forceClose && !isDataTimeout }"></div>
-            <div class="status-text">
-              <div class="status-name">强迫关门失效</div>
-              <div class="status-detail fixed-height">发生楼层：{{ doorData.floor }} 层</div>
-            </div>
-          </div>
-          
-          <div class="status-item">
-            <div class="led-indicator red" :class="{ 'active': doorData.DI2_ && !isDataTimeout }"></div>
-            <div class="status-text">
-              <div class="status-name">层门锁中心超差</div>
-              <div class="status-detail fixed-height">发生楼层：{{ doorData.floor }} 层</div>
-            </div>
-          </div>
-          
-          <div class="status-item">
-            <div class="led-indicator yellow" :class="{ 'active': doorData.DI3_ && !isDataTimeout }"></div>
-            <div class="status-text">
-              <div class="status-name">烟囱效应产生</div>
-              <div class="status-detail fixed-height">发生楼层：{{ doorData.floor }} 层</div>
-            </div>
-          </div>
-          
-          <div class="status-item">
-            <div class="led-indicator red" :class="{ 'active': doorData.DI2 && !isDataTimeout }"></div>
-            <div class="status-text">
-              <div class="status-name">导向系统失效</div>
-              <div class="status-detail fixed-height">发生楼层：{{ doorData.floor }} 层</div>
-            </div>
-          </div>
-          
-          <div class="status-item">
-            <div class="led-indicator red" :class="{ 'active': doorData.DI3 && !isDataTimeout }"></div>
-            <div class="status-text">
-              <div class="status-name">门控制器故障</div>
-              <div class="status-detail fixed-height">更换门控制器</div>
-            </div>
-          </div>
-          
-          <div class="status-item">
-            <div class="led-indicator red" :class="{ 'active': doorData.DI0 && !isDataTimeout }"></div>
-            <div class="status-text">
-              <div class="status-name">门电机故障</div>
-              <div class="status-detail fixed-height">更换门电机</div>
-            </div>
-          </div>
-          
-          <div class="status-item">
-            <div class="led-indicator red" :class="{ 'active': doorData.DI1 && !isDataTimeout }"></div>
-            <div class="status-text">
-              <div class="status-name">门刀故障</div>
-              <div class="status-detail fixed-height">更换门刀</div>
-            </div>
-          </div>
-          
-          <div class="status-item">
-            <div class="led-indicator red" :class="{ 'active': doorData.motorOverheat && !isDataTimeout }"></div>
-            <div class="status-text">
-              <div class="status-name">门电机过温</div>
-              <div class="status-detail fixed-height">电机温度 {{ doorData.IPMTemperature }}°C</div>
-            </div>
-          </div>
-          
-          <div class="status-item">
-            <div class="led-indicator red" :class="{ 'active': doorData.stall && !isDataTimeout }"></div>
-            <div class="status-text">
-              <div class="status-name">门编码器故障</div>
-              <div class="status-detail fixed-height">更换编码器</div>
+              <div class="status-name">{{ item.name }}</div>
+              <div class="status-detail fixed-height">{{ getFaultDetail(item) }}</div>
             </div>
           </div>
         </div>
@@ -368,7 +284,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps({
   doorData: {
@@ -429,13 +345,94 @@ const faultItems = [
   { name: '强迫关门失效', key: 'forceClose' },
   { name: '层门锁中心超差', key: 'DI2_' },
   { name: '烟囱效应产生', key: 'DI3_' },
-  { name: '导向系统失效', key: 'DI2' },
-  { name: '门控制器故障', key: 'DI3' },
-  { name: '门电机故障', key: 'DI0' },
-  { name: '门刀故障', key: 'DI1' },
+  { name: '导向系统失效', key: '' },
+  { name: '门控制器故障', key: '' },
+  { name: '门电机故障', key: '' },
+  { name: '门刀故障', key: 'DI2_' },
   { name: '门电机过温', key: 'motorOverheat' },
-  { name: '门编码器故障', key: 'stall' }
+  { name: '门编码器故障', key: '' }
 ]
+
+// 故障检测相关状态
+const isDetecting = ref(true); // 默认始终处于检测状态
+const currentDetectionIndex = ref(0);
+const detectionTimer = ref(null);
+
+// 获取指示灯颜色
+const getIndicatorColor = (item) => {
+  // 根据故障类型返回不同颜色
+  if (item.key.includes('stallByObstacle') || 
+      item.key.includes('forceClose') || 
+      item.key.includes('DI2_') || 
+      item.key.includes('DI2') || 
+      item.key.includes('DI3') || 
+      item.key.includes('DI0') || 
+      item.key.includes('DI1') || 
+      item.key.includes('motorOverheat') || 
+      item.key.includes('stall')) {
+    return 'red';
+  }
+  return 'yellow';
+};
+
+// 检查故障是否激活
+const isFaultActive = (item) => {
+  return props.doorData[item.key] && !props.isDataTimeout;
+};
+
+// 获取故障详情
+const getFaultDetail = (item) => {
+  if (item.key === 'stallByObstacle') {
+    return `${props.doorData.floor} 层，阻力值 ${props.doorData.resist} N`;
+  } else if (item.key === 'DI0_') {
+    return `调节螺丝需拧紧 ${props.doorData.turns.toFixed(1)} 圈`;
+  } else if (item.key === 'motorOverheat') {
+    return `电机温度 ${props.doorData.IPMTemperature}°C`;
+  } else if (item.key === 'DI0' || item.key === 'DI3' || item.key === 'stall') {
+    return '更换' + (item.key === 'DI0' ? '门电机' : item.key === 'DI3' ? '门控制器' : '编码器');
+  } else if (item.key === 'DI1') {
+    return '更换门刀';
+  } else {
+    return `发生楼层：${props.doorData.floor} 层`;
+  }
+};
+
+// 启动检测动画
+const startDetection = () => {
+  isDetecting.value = true;
+  
+  // 停止之前的定时器
+  if (detectionTimer.value) {
+    clearInterval(detectionTimer.value);
+  }
+  
+  // 设置一个定时器，每秒钟切换一次当前检测的项目
+  detectionTimer.value = setInterval(() => {
+    currentDetectionIndex.value = (currentDetectionIndex.value + 1) % faultItems.length;
+  }, 1000);
+};
+
+// 停止检测动画 - 保留但不主动调用
+const stopDetection = () => {
+  isDetecting.value = false;
+  if (detectionTimer.value) {
+    clearInterval(detectionTimer.value);
+    detectionTimer.value = null;
+  }
+};
+
+// 组件挂载时立即启动检测
+onMounted(() => {
+  // 立即启动检测循环，不需要条件判断
+  startDetection();
+});
+
+// 组件卸载时清除定时器
+onUnmounted(() => {
+  if (detectionTimer.value) {
+    clearInterval(detectionTimer.value);
+  }
+});
 </script>
 
 <style scoped>
@@ -957,6 +954,38 @@ const faultItems = [
     color: #fff; /* 提高对比度 */
     text-shadow: 0 0 4px rgba(0, 0, 0, 0.5); /* 添加文字阴影增加可读性 */
     margin: 0; /* 重置边距 */
+  }
+}
+
+/* 删除不需要的进度指示器和按钮样式 */
+.detection-progress,
+.progress-text,
+.progress-indicators,
+.progress-indicator,
+.manual-detection,
+.detection-button {
+  display: none;
+}
+
+/* 增强指示灯检测动画 */
+.led-indicator.detecting {
+  animation: pulse 1s infinite;
+  background-color: #4d77f9 !important; /* 蓝色脉动指示灯，表示正在检测 */
+  box-shadow: 0 0 10px #4d77f9, inset 0 0 5px rgba(255, 255, 255, 0.3) !important;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.7;
   }
 }
 </style> 
