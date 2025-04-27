@@ -12,7 +12,7 @@
       <!-- 实时时间和样机实时数据，位于标题栏和门板之间，与容器右对齐 -->
       <div class="container-width">
         <div class="real-time-data">
-          <div class="time-display">{{ currentTime }} 样机实时数据</div>
+          <div class="time-display">{{ currentTime }} 实时数据</div>
         </div>
       </div>
       
@@ -257,9 +257,9 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 20px;
+  padding: 0;
   position: relative;
-  margin-bottom: 0; /* 减少与下方时间区域的间距 */
+  margin-bottom: 0;
 }
 
 /* 设置时间和容器共享的宽度约束 */
@@ -267,15 +267,17 @@ body {
   width: 100%;
   max-width: 900px;
   margin: 0 auto;
-  padding: 0;
+  padding: 0 20px;
+  box-sizing: border-box;
 }
 
 /* 实时时间和样机实时数据样式 */
 .real-time-data {
   display: flex;
   justify-content: flex-end;
-  padding: 6px 0 12px;
+  padding: 2px 0 6px;
   width: 100%;
+  margin-top: 0px;
 }
 
 .time-display {
@@ -285,8 +287,8 @@ body {
 }
 
 .el-main {
-  padding-top: 10px;
-  padding-bottom: 20px;
+  padding-top: 0;
+  padding-bottom: 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -316,7 +318,7 @@ body {
 
 /* 元素之间的间距 */
 .el-main > * {
-  margin-bottom: 10px;
+  margin-bottom: 5px;
 }
 
 .el-main > *:last-child {
@@ -327,8 +329,8 @@ body {
 .unified-door-container {
   display: flex;
   width: 100%;
-  max-width: 100%;
-  margin: 10px 0;
+  max-width: 900px;
+  margin: -20px 0 8px;
   background-color: #132859;
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
@@ -519,6 +521,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
+  padding-top: 0;
 }
 
 /* 添加页面底部宣传文字样式 */

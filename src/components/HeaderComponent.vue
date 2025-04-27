@@ -122,26 +122,20 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   flex-grow: 1;
-  padding: 0 15px;
   position: relative;
+  max-width: 400px;
 }
 
 .header-logo {
   height: 28px;
   width: auto;
-  position: absolute;
-  left: calc(50% - 110px);
-  top: 50%;
-  transform: translateY(-50%);
+  margin-right: 10px;
 }
 
 .title-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
 }
 
 .title {
