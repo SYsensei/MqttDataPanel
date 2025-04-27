@@ -7,20 +7,6 @@
         <div class="subtitle" style="display: none;">美的先行研究中心</div>
       </div>
     </div>
-    <div class="header-weather-time">
-      <div class="left-section">
-        <div class="time">{{ currentTime }}</div>
-      </div>
-      <div class="right-section">
-        <div class="weather">
-          <div class="weather-icon">{{ weatherIcon }}</div>
-          <div class="temp-info">
-            <span class="temperature">{{ temperature }}</span>
-            <div class="city-info">{{ city }} {{ weatherCondition }}</div>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -96,6 +82,12 @@ const updateTime = () => {
   currentTime.value = `${hours}:${minutes}:${seconds}`
 }
 
+// 导出当前时间，供父组件使用
+defineExpose({
+  currentTime,
+  updateTime
+})
+
 onMounted(() => {
   // 启动时间更新
   updateTime()
@@ -113,7 +105,7 @@ onMounted(() => {
 .top-header {
   background-color: #061b4f;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   padding: 8px 15px;
   height: 48px;
@@ -123,20 +115,6 @@ onMounted(() => {
   width: 100%;
   overflow: hidden;
   box-sizing: border-box;
-}
-
-.left-section {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-  min-width: 80px;
-}
-
-.time {
-  font-size: 16px;
-  color: #ffffff;
-  font-weight: bold;
 }
 
 .center-section {
@@ -179,98 +157,5 @@ onMounted(() => {
   color: #a0aee0;
   text-align: center;
   margin-top: 2px;
-}
-
-.right-section {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 80px;
-}
-
-.weather {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  max-width: 110px;
-  overflow: hidden;
-}
-
-.weather-icon {
-  font-size: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.temp-info {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.temperature {
-  font-size: 16px;
-  color: #ffffff;
-  font-weight: bold;
-  white-space: nowrap;
-}
-
-.city-info {
-  font-size: 10px;
-  color: #ffffff;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  overflow: hidden;
-  max-width: 100%;
-}
-
-.header-weather-time {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  position: absolute;
-  right: 15px;
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-/* 媒体查询适配小屏幕 */
-@media (max-width: 576px) {
-  .top-header {
-    flex-wrap: wrap;
-    height: auto;
-    padding: 8px 10px;
-  }
-  
-  .center-section {
-    width: 100%;
-    padding: 0;
-    margin-bottom: 5px;
-  }
-  
-  .header-logo {
-    position: static;
-    transform: none;
-    margin-right: 10px;
-  }
-  
-  .title-container {
-    position: static;
-    transform: none;
-  }
-  
-  .header-weather-time {
-    position: static;
-    transform: none;
-    width: 100%;
-    justify-content: space-between;
-  }
-  
-  .left-section, .right-section {
-    min-width: 0;
-  }
 }
 </style>

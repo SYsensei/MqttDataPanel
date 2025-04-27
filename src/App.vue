@@ -4,8 +4,16 @@
       <!-- 顶部标题 -->
       <div class="app-header">
         <header-component 
+          ref="headerRef"
           :logo-src="logoSrc" 
           :battery-level="batteryLevel" />
+      </div>
+      
+      <!-- 实时时间和样机实时数据，位于标题栏和门板之间，与容器右对齐 -->
+      <div class="container-width">
+        <div class="real-time-data">
+          <div class="time-display">{{ currentTime }} 样机实时数据</div>
+        </div>
       </div>
       
       <el-main>
@@ -73,6 +81,11 @@
         </div>
       </el-main>
       <ScrollHint scrollContainerId=".app-container" :debug="false" />
+      
+      <!-- 页面底部宣传文字 -->
+      <div class="promotion-footer">
+        门机改造换新，手机就能获取运行数据及故障检测
+      </div>
     </div>
   </div>
 </template>
@@ -106,6 +119,12 @@ const logoSrc = ref(LogoImage)
 // 电池电量
 const batteryLevel = ref(85)
 
+// 当前时间
+const currentTime = ref('')
+
+// Header组件引用
+const headerRef = ref(null)
+
 // 数据超时检查定时器
 const dataTimeoutCheckInterval = ref(null)
 const doorAnimationInterval = ref(null) // 门位置动画更新定时器
@@ -120,6 +139,15 @@ const currentElevatorFloor = computed(() => {
   }
   return 1;
 })
+
+// 更新时间的函数
+const updateTime = () => {
+  const now = new Date();
+  const hours = now.getHours().toString().padStart(2, '0');
+  const minutes = now.getMinutes().toString().padStart(2, '0');
+  const seconds = now.getSeconds().toString().padStart(2, '0');
+  currentTime.value = `${hours}:${minutes}:${seconds}`;
+}
 
 // 组件挂载时
 onMounted(() => {
@@ -148,6 +176,12 @@ onMounted(() => {
   doorAnimationInterval.value = setInterval(() => {
     dataService.doorAnimationUpdate()
   }, 16) // 约60fps
+  
+  // 初始更新时间
+  updateTime()
+  
+  // 设置时间更新间隔
+  setInterval(updateTime, 1000)
 })
 
 // 组件卸载时
@@ -225,7 +259,29 @@ body {
   align-items: center;
   padding: 0 20px;
   position: relative;
-  margin-bottom: 20px;
+  margin-bottom: 0; /* 减少与下方时间区域的间距 */
+}
+
+/* 设置时间和容器共享的宽度约束 */
+.container-width {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0;
+}
+
+/* 实时时间和样机实时数据样式 */
+.real-time-data {
+  display: flex;
+  justify-content: flex-end;
+  padding: 6px 0 12px;
+  width: 100%;
+}
+
+.time-display {
+  font-size: 14px;
+  color: #ffff90;
+  font-weight: bold;
 }
 
 .el-main {
@@ -408,6 +464,28 @@ body {
     margin: 0;
     overflow: hidden;
   }
+  
+  /* 小屏幕下调整时间显示和内容容器 */
+  /* .real-time-data, .content-container {
+    padding-left: 15px;
+    padding-right: 15px;
+    max-width: calc(100% - 30px);
+    width: calc(100% - 30px);
+  }
+  
+  .real-time-data {
+    padding-top: 5px;
+    padding-bottom: 8px;
+  }
+  
+  .content-container {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  
+  .time-display {
+    font-size: 14px;
+  } */
 }
 
 /* 门机运行状态组件样式 */
@@ -443,5 +521,23 @@ body {
   align-items: center;
 }
 
+/* 添加页面底部宣传文字样式 */
+.promotion-footer {
+  text-align: center;
+  color: #ffff90;
+  padding: 15px 0;
+  font-size: 16px;
+  width: 100%;
+  background-color: #0a1a40;
+  border-top: 1px solid rgba(58, 95, 196, 0.3);
+  margin-top: auto;
+  font-weight: bold;
+}
 
+@media (max-width: 768px) {
+  .promotion-footer {
+    font-size: 14px;
+    padding: 10px 0;
+  }
+}
 </style> 

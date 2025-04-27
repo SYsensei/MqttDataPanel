@@ -13,6 +13,7 @@
               <div class="led-indicator green" :class="{ 'active': !isDataTimeout && validTopicReceived }"></div>
             <div class="status-text">
               <div class="status-name">正常</div>
+                <div class="status-detail fixed-height" v-if="!(!isDataTimeout && validTopicReceived)">设备离线</div>
             </div>
           </div>
           
@@ -178,22 +179,22 @@
         <!-- 输入信号 -->
         <div class="status-item-compact">
           <div class="led-indicator green" :class="{ active: doorData.opening && !isDataTimeout }"></div>
-          <div class="status-text-compact">开门端子输入</div>
+          <div class="status-text-compact">开门信号输入</div>
         </div>
         
         <div class="status-item-compact">
           <div class="led-indicator green" :class="{ active: doorData.closing && !isDataTimeout }"></div>
-          <div class="status-text-compact">关门端子输入</div>
+          <div class="status-text-compact">关门信号输入</div>
         </div>
         
         <div class="status-item-compact">
           <div class="led-indicator green" :class="{ active: doorData.DI2 && !isDataTimeout }"></div>
-          <div class="status-text-compact">强迫关门端子输入</div>
+          <div class="status-text-compact">强迫关门信号</div>
         </div>
         
         <div class="status-item-compact">
           <div class="led-indicator green" :class="{ active: doorData.doorPosition < 20 && !isDataTimeout }"></div>
-          <div class="status-text-compact">关门到位开关输入</div>
+          <div class="status-text-compact">关门到位信号</div>
         </div>
         
         <!-- 输出信号 -->

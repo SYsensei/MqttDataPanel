@@ -31,7 +31,7 @@ const deployEnv = getDeployEnv()
 console.log(`当前部署环境: ${deployEnv}`)
 
 // 挂载应用
-app.mount('#app')
+app.mount('#app') 
 
 // 调试信息
 console.log('Vue应用已加载完成') 
