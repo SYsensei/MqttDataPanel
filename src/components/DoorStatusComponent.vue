@@ -36,7 +36,7 @@
           <div class="status-item">
               <div class="led-indicator red" :class="{ 'active': doorData.faultCode > 0 && !isDataTimeout }"></div>
             <div class="status-text">
-              <div class="status-name">故障</div>
+              <div class="status-name">故障代码</div>
               <div class="status-detail fixed-height" v-if="doorData.faultCode > 0 && !isDataTimeout">Err{{ doorData.faultCode }}</div>
             </div>
           </div>
@@ -67,16 +67,17 @@
           </div>
           
           <div class="status-item">
+              <div class="led-indicator green" :class="{ 'active': doorData.DI3_ }"></div>
+            <div class="status-text">
+              <div class="status-name">检修中...</div>
+                <div class="status-detail fixed-height" v-if="doorData.DI3_">检修中，请注意安全</div>
+            </div>
+          </div>
+
+          <div class="status-item">
             <div class="status-text">
               <div class="status-name">累计运行次数</div>
               <div class="status-detail fixed-height">{{ doorData.totalOperations }}次</div>
-            </div>
-          </div>
-          
-          <div class="status-item">
-            <div class="status-text">
-              <div class="status-name">最近维保日期</div>
-              <div class="status-detail fixed-height">2025年3月15日</div>
             </div>
           </div>
           </template>
@@ -93,7 +94,7 @@
             <div class="status-item">
               <div class="led-indicator red" :class="{ 'active': doorData.faultCode > 0 && !isDataTimeout }"></div>
               <div class="status-text">
-                <div class="status-name">故障</div>
+                <div class="status-name">故障代码</div>
                 <div class="status-detail fixed-height" v-if="doorData.faultCode > 0 && !isDataTimeout">Err{{ doorData.faultCode }}</div>
               </div>
             </div>
@@ -141,18 +142,19 @@
             </div>
             
             <div class="status-item">
-              <div class="status-text">
-                <div class="status-name">累计运行次数</div>
-                <div class="status-detail fixed-height">{{ doorData.totalOperations }}次</div>
-              </div>
+              <div class="led-indicator green" :class="{ 'active': doorData.DI3_ }"></div>
+            <div class="status-text">
+              <div class="status-name">检修中...</div>
+                <div class="status-detail fixed-height" v-if="doorData.DI3_">检修中，请注意安全</div>
             </div>
+          </div>
           </template>
         </div>
       </div>
       
       <!-- 新增门机故障检测部分 -->
       <div class="door-status-section">
-        <h2 class="section-title">门机故障检测</h2>
+        <h2 class="section-title">门机故障检测中…</h2>
         
         <div class="status-grid">
           <div v-for="(item, index) in faultItems" :key="item.key" class="status-item">
@@ -207,7 +209,7 @@
         
         <div class="status-item-compact">
           <div class="led-indicator red" :class="{ active: doorData.DO2 && !isDataTimeout }"></div>
-          <div class="status-text-compact">开关门故障输出</div>
+          <div class="status-text-compact">开关门故障报警</div>
         </div>
       </div>
     </div>
@@ -373,7 +375,7 @@ const faultItems = [
   { name: '门机同步带松', key: 'DI0_' },
   { name: '强迫关门失效', key: 'forceClose' },
   { name: '层门锁中心超差', key: 'DI2_' },
-  { name: '烟囱效应产生', key: 'DI3_' },
+  { name: '烟囱效应产生', key: 'DO2_' },
   { name: '导向系统失效', key: 'DI4' },
   { name: '门控制器故障', key: 'DI5' },
   { name: '门电机故障', key: 'DI6' },

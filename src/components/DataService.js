@@ -18,10 +18,13 @@ export const doorData = reactive({
   DI0_: 0,                 // 改为：门机同步带松动
   DI1_: 0,                 // 改为：层门开关闪断
   DI2_: 0,                 // 改为：门刀开关故障
-  DI3_: 0,                 // 改为：烟囱效应产生
+  DI3_: 0,                 // 改为：检修中
   DO0: 0,                  // 改为：开门到位端子输出状态
   DO1: 0,                  // 改为：关门到位端子输出状态
   DO2: 0,                  // 改为：电机过热端子输出状态
+  DO0_: 0,                 // 
+  DO1_: 0,                 // 
+  DO2_: 0,                 // 改为：烟囱效应产生
   busVoltage: 0,           // 母线电压
   IPMTemperature: 0,       // IPM温度
   faultCode: 0,            // 故障码
@@ -325,12 +328,15 @@ export function useDataService() {
       doorData.DI0_ = ((uint8Array[6] & 0x10) === 0x10) ? 1 : 0 // 门机同步带松
       doorData.DI1_ = ((uint8Array[6] & 0x20) === 0x20) ? 1 : 0 // 层门开关闪断
       doorData.DI2_ = ((uint8Array[6] & 0x40) === 0x40) ? 1 : 0 // 层门锁中心超差
-      doorData.DI3_ = ((uint8Array[6] & 0x80) === 0x80) ? 1 : 0 // 烟囱效应产生
+      doorData.DI3_ = ((uint8Array[6] & 0x80) === 0x80) ? 1 : 0 // 检修中
       
       // 解析 BYTE7 输出端子状态 - 重命名
       doorData.DO0 = ((uint8Array[7] & 0x01) === 0x01) ? 1 : 0   // 开门到位端子输出状态
       doorData.DO1 = ((uint8Array[7] & 0x02) === 0x02) ? 1 : 0   // 关门到位端子输出状态
       doorData.DO2 = ((uint8Array[7] & 0x04) === 0x04) ? 1 : 0   // 电机过热端子输出状态
+      doorData.DO0_ = ((uint8Array[7] & 0x10) === 0x10) ? 1 : 0
+      doorData.DO1_ = ((uint8Array[7] & 0x20) === 0x20) ? 1 : 0
+      doorData.DO2_ = ((uint8Array[7] & 0x40) === 0x40) ? 1 : 0  // 烟囱效应产生
       // 解析母线电压
       doorData.busVoltage = (uint8Array[8] << 8) | uint8Array[9]
       // 解析 IPM 温度
