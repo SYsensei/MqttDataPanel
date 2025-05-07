@@ -62,7 +62,7 @@
           <div class="status-item">
               <div class="led-indicator green" :class="{ 'active': doorData.doorPosition < 20 && !isDataTimeout }"></div>
             <div class="status-text">
-              <div class="status-name">门锁回路</div>
+              <div class="status-name">轿门锁止</div>
               <div class="status-detail fixed-height"></div>
             </div>
           </div>
@@ -137,7 +137,7 @@
             <div class="status-item">
               <div class="led-indicator green" :class="{ 'active': doorData.doorPosition < 20 && !isDataTimeout }"></div>
               <div class="status-text">
-                <div class="status-name">门锁回路</div>
+                <div class="status-name">轿门锁止</div>
                 <div class="status-detail fixed-height"></div>
               </div>
             </div>
@@ -371,13 +371,13 @@ const roundToHalf = (value) => {
 
 // 故障检测项列表
 const faultItems = [
-  { name: '层门开关闪断', key: 'DI1_' },
+  { name: '层门锁不良', key: 'DI1_' },
   { name: '地坎垃圾阻门', key: 'stallByObstacle' },
   { name: '门机同步带松', key: 'DI0_' },
-  { name: '强迫关门失效', key: 'forceClose' },
-  { name: '层门锁中心超差', key: 'DI2_' },
+  { name: '强迫关门不良', key: 'forceClose' },
+  { name: '层门锁中心超差', key: 'DO1_' },
   { name: '烟囱效应产生', key: 'DO2_' },
-  { name: '导向系统失效', key: 'DI4' },
+  { name: '导向系统不良', key: 'DI4' },
   { name: '门控制器故障', key: 'DI5' },
   { name: '门电机故障', key: 'DI6' },
   { name: '门刀故障', key: 'DI2_' },
