@@ -8,6 +8,7 @@
     "DEPLOY_ENV": "VERCEL"
   },
   "routes": [
+    { "src": "/KhGCEtTRxy.txt", "dest": "/KhGCEtTRxy.txt" },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/" }
   ]

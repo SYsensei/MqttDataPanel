@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
+import fs from 'fs'
 
 // 根据环境变量决定基础路径
 function getBaseUrl() {
@@ -16,9 +17,37 @@ function getBaseUrl() {
   return './';
 }
 
+// 复制配置文件的插件
+const copyConfigFilePlugin = () => {
+  return {
+    name: 'copy-config-file',
+    closeBundle() {
+      try {
+        // 确保输出目录存在
+        if (!fs.existsSync('dist')) {
+          fs.mkdirSync('dist', { recursive: true });
+        }
+        
+        // 复制配置文件
+        if (fs.existsSync('KhGCEtTRxy.txt')) {
+          fs.copyFileSync('KhGCEtTRxy.txt', 'dist/KhGCEtTRxy.txt');
+          console.log('✅ 配置文件复制成功');
+        } else {
+          console.warn('⚠️ 配置文件不存在，跳过复制');
+        }
+      } catch (error) {
+        console.error('❌ 复制配置文件失败:', error);
+      }
+    }
+  };
+};
+
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [
+    vue(),
+    copyConfigFilePlugin()
+  ],
   base: getBaseUrl(),
   server: {
     host: true,

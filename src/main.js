@@ -2,7 +2,7 @@ import { createApp } from 'vue'
 import App from './App.vue'
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
-import { getDeployEnv } from './utils/deploy-env'
+import { getDeployEnv, logDeployInfo } from './utils/deploy-env'
 
 // 创建全局CSS变量
 const style = document.createElement('style')
@@ -29,6 +29,9 @@ app.use(ElementPlus)
 // 输出当前部署环境
 const deployEnv = getDeployEnv()
 console.log(`当前部署环境: ${deployEnv}`)
+
+// 记录部署信息（包括配置文件检查）
+logDeployInfo()
 
 // 挂载应用
 app.mount('#app') 
