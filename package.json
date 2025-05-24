@@ -4,12 +4,16 @@
   "private": true,
   "scripts": {
     "dev": "vite",
+    "dev:https": "vite --https",
+    "dev:https:custom": "node scripts/run-https.js",
+    "create-cert": "powershell -ExecutionPolicy Bypass -File scripts/create-cert.ps1",
     "prebuild": "node scripts/deploy-config.js",
     "build": "vite build",
     "build:github": "node scripts/deploy-config.js && vite build --config vite.config.github.js",
     "build:gitlab": "node scripts/deploy-config.js && vite build --config vite.config.gitlab.js",
     "build:vercel": "node scripts/deploy-config.js && vite build --config vite.config.vercel.js",
     "preview": "vite preview",
+    "preview:https": "vite preview --https",
     "deploy": "sh deploy.sh",
     "deploy:win": "powershell -ExecutionPolicy Bypass -File deploy.ps1",
     "config": "node scripts/deploy-config.js"
